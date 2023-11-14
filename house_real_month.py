@@ -116,11 +116,15 @@ def plot_price_history(ax, prices, df):
     prices.index = pd.to_datetime(year_month_series[valid_months_mask], format='%Y%m')
     prices = prices[prices.index >= pd.to_datetime('201801', format='%Y%m')]
 
-    # `prices` should already be a DataFrame
+    upper_limit = 10000000 # Set your upper limit based on domain knowledge
+
     for district in prices.columns:
-        #print(f"district:{district}")
-        #print(f" prices[district]:{ prices[district]}")
-        ax.plot(prices.index, prices[district], label=district, marker='o')  # Use the datetime index for x-values
+        # Filter out prices above the upper limit
+        filtered_prices = prices[district][prices[district] <= upper_limit]
+
+        # Use the index of filtered_prices as x-values for plotting
+        ax.plot(filtered_prices.index, filtered_prices, label=district, marker='o')
+
     prices.mean(axis=1).plot(ax=ax, label='Mean', linestyle='--', color='black', marker='o')  # Add dots
     
     # Add interactive cursor
@@ -128,7 +132,7 @@ def plot_price_history(ax, prices, df):
     # Inside the on_add function
     @cursor.connect("add")
     def on_add(sel):
-        x, y = sel.target
+        x, y = sel.target 
         date = mdates.num2date(x)
         formatted_date = date.strftime('%Y%m')
 
@@ -161,6 +165,11 @@ def plot_price_history(ax, prices, df):
 
     # Rotate dates for better readability
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    # After plotting, modify the y-axis tick labels
+    current_yticks = ax.get_yticks()
+    new_ytick_labels = [y * 1 for y in current_yticks]
+    ax.set_yticklabels(new_ytick_labels)
 
     # Ensure that the figure updates
     ax.figure.canvas.draw_idle()
