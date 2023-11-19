@@ -102,7 +102,8 @@ def plot_price_history(ax, prices):
     ax.figure.subplots_adjust(right=0.75)  # Adjust the right boundary of the subplot to make space for the legend
 '''
 def plot_price_history(ax, prices, df):
-    ax.clear()  # Clear the existing plot on the axis
+    global check_buttons  # Declare the CheckButtons widget as a global variable
+    ax.clear()
     # Convert the index to a string Series
     year_month_series = pd.Series(prices.index.astype(str))
     
@@ -116,33 +117,31 @@ def plot_price_history(ax, prices, df):
     prices.index = pd.to_datetime(year_month_series[valid_months_mask], format='%Y%m')
     prices = prices[prices.index >= pd.to_datetime('201801', format='%Y%m')]
 
-    upper_limit = 10000000 # Set your upper limit based on domain knowledge
+    upper_limit = 10000000  # Set your upper limit based on domain knowledge
 
+    lines = {}  # Dictionary to store line objects
     for district in prices.columns:
         # Filter out prices above the upper limit
         filtered_prices = prices[district][prices[district] <= upper_limit]
 
-        # Use the index of filtered_prices as x-values for plotting
-        ax.plot(filtered_prices.index, filtered_prices, label=district, marker='o')
+        # Store each line object in the dictionary
+        line, = ax.plot(filtered_prices.index, filtered_prices, label=district, marker='o')
+        lines[district] = line
 
-    prices.mean(axis=1).plot(ax=ax, label='Mean', linestyle='--', color='black', marker='o')  # Add dots
-    
+    prices.mean(axis=1).plot(ax=ax, label='Mean', linestyle='--', color='black', marker='o')
+
     # Add interactive cursor
     cursor = mplcursors.cursor(ax, hover=True)
+    
     # Inside the on_add function
     @cursor.connect("add")
     def on_add(sel):
-        x, y = sel.target 
+        x, y = sel.target
         date = mdates.num2date(x)
         formatted_date = date.strftime('%Y%m')
 
         # Find the corresponding row in df
-        matching_row = df[(df['year_month'] == formatted_date)]# & (df['單價元坪'] == y)]
-        print(f"formatted_date:{formatted_date}")
-        print(f"df['year_month']:{df['year_month']}")
-        print(f"y:{y}")
-        print(f"df['單價元坪']:{df['單價元坪']}")
-        print(f"matching_row:{matching_row}")
+        matching_row = df[(df['year_month'] == formatted_date)]
         if not matching_row.empty:
             source_file = matching_row.iloc[0]['source_file']
         else:
@@ -151,27 +150,34 @@ def plot_price_history(ax, prices, df):
         sel.annotation.set(text=f'Date: {formatted_date}\nPrice: {y:,.0f}\nSource: {source_file}')
         sel.annotation.get_bbox_patch().set(fc="white", alpha=0.6)
 
-    ax.legend(fontsize="small", loc="upper left", bbox_to_anchor=(1.0, 1.0))  # Adjusting font size and position
+    # Determine the position of the CheckButtons in the same figure
+    check_ax = ax.figure.add_axes([0.05, 0.05, 0.15, 0.2])  # Adjust this as necessary
+    line_labels = [line.get_label() for line in lines.values()]
+    visibility = [line.get_visible() for line in lines.values()]
+    check_buttons = CheckButtons(check_ax, line_labels, visibility)  # Use the global variable
+
+    def toggle_visibility(label):
+        line = lines[label]
+        line.set_visible(not line.get_visible())
+        ax.figure.canvas.draw_idle()  # Redraw the figure to update visibility
+
+    check_buttons.on_clicked(toggle_visibility)  # Connect the event handler
+
+    ax.legend(fontsize="small", loc="upper left", bbox_to_anchor=(1.0, 1.0))
     format_plot(ax, title="Price History by District and Month")
-    ax.grid(True)  # Add grid
-    ax.figure.subplots_adjust(right=0.75)  # Adjust the right boundary of the subplot to make space for the legend
-    # Set the locator for major ticks to each year and the formatter to show 'YYYYMM'
+    ax.grid(True)
+    ax.figure.subplots_adjust(right=0.75)
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y%m'))
-
-    # Set custom x-ticks and x-tick labels
     ax.set_xticks([pd.to_datetime(str(year) + '01', format='%Y%m') for year in range(2018, 2024)])
     ax.set_xticklabels([str(year) + '01' for year in range(2018, 2024)], rotation=45)
-
-    # Rotate dates for better readability
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
-
-    # After plotting, modify the y-axis tick labels
+    
     current_yticks = ax.get_yticks()
-    new_ytick_labels = [y * 1 for y in current_yticks]
+    ax.yaxis.set_major_locator(plt.FixedLocator(current_yticks))  # Set fixed locations for y-ticks
+    new_ytick_labels = [f'{int(y / 1000)}k' for y in current_yticks]  # Format y-axis labels to 'k' format
     ax.set_yticklabels(new_ytick_labels)
 
-    # Ensure that the figure updates
     ax.figure.canvas.draw_idle()
 
 def plot_price_building_type(ax, df):
