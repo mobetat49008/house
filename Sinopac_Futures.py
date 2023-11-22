@@ -1,4 +1,5 @@
 import shioaji as sj
+import pandas as pd
 import json
 
 # Path to the JSON file
@@ -15,14 +16,14 @@ def stock_test_unit(api):
         price=18,                                       # 價格
         quantity=1,                                     # 數量
         action=sj.constant.Action.Buy,                  # 買賣別
-        price_type=sj.constant.StockPriceType.LMT,      # 委託價格類別
+        price_type=sj.constant.StockPriceType.MKT,      # 委託價格類別
         order_type=sj.constant.OrderType.ROD,           # 委託條件
         account=api.stock_account                       # 下單帳號
     )
 
     # 下單
     trade = api.place_order(contract, order)
-    stock_test_unit
+    print(f"[stock_test_unit]Result:{trade}")
     print("<<stock_test_unit")
 
 def futures_test_unit(api):
@@ -40,7 +41,7 @@ def futures_test_unit(api):
     # 期貨委託單 - 請修改此處
     order = api.Order(
         action=sj.constant.Action.Buy,                   # 買賣別
-        price=15000,                                     # 價格
+        price=17400,                                     # 價格
         quantity=1,                                      # 數量
         price_type=sj.constant.FuturesPriceType.LMT,     # 委託價格類別
         order_type=sj.constant.OrderType.ROD,            # 委託條件
@@ -50,8 +51,56 @@ def futures_test_unit(api):
 
     # 下單
     trade = api.place_order(contract, order)
+    print(f"[futures_test_unit]Result:{trade}")
     print("<<futures_test_unit")
 
+def get_stock_balance(api):
+
+    balance = api.account_balance()
+    print(f"The balance is {balance.acc_balance}")
+    
+    if balance.status:    
+        return balance
+    else:
+        print("The query status is not working.Please check!")
+        return False
+
+def get_stock_settlements(api):
+
+    settlements = api.settlements(api.stock_account)
+    print(settlements)
+    
+    return settlements
+
+def list_position(api):
+    
+    positions = api.list_positions(api.stock_account)
+    # Set the option to display all columns
+    pd.set_option('display.max_columns', None)
+
+    df = pd.DataFrame(s.__dict__ for s in positions)
+    #print(df)
+
+    return df
+    
+#Ref link:https://sinotrade.github.io/zh_TW/tutor/accounting/margin/
+def get_future_margin(api):
+    
+    margin = api.margin(api.futopt_account)
+    print(f"The balance is {margin.available_margin}")
+
+    if margin.status:    
+        return margin
+    else:
+        print("The query status is not working.Please check!")
+        return False
+
+def list_accounts(api):
+    
+    accounts = api.list_accounts()
+    print(f"The account details is {accounts}")
+    
+    return accounts
 
 if __name__ == '__main__':
     
@@ -66,6 +115,7 @@ if __name__ == '__main__':
     API_KEY = data['API_KEY']
     API_SECRET_KEY = data['API_SECRET_KEY']
 
+    #First time need to add simulation=True for confirmation
     api = sj.Shioaji()
     api.login(
         api_key=API_KEY, 
@@ -84,20 +134,25 @@ if __name__ == '__main__':
         
     accounts = api.list_accounts()
     print(f"The account details is {accounts}")
-    
-    stock_test_unit(api)
-    futures_test_unit(api)
-    
-    '''
-    #Set default feature account
-    api.set_default_account(accounts[0])
-    print(api.futopt_account)
-    
-    #Set default stock account
-    api.set_default_account(accounts[1])
-    print(api.stock_account)
 
-    api.list_positions(api.stock_account)
+    get_stock_balance(api)
+    get_future_margin(api)
+    list_position(api)
+    print(get_stock_settlements(api))
+
+    #Set default stock account
+    #api.set_default_account(accounts[1])
+    #stock_test_unit(api)
+ 
+    #Set default feature account
+    #api.set_default_account(accounts[0])
+    #futures_test_unit(api)
+    
     '''
-    
-    
+    print(">>Test")
+    rst = api.update_status(api.futopt_account)
+    print(rst)
+    rst = api.list_trades()
+    print(rst)
+    print("<<Test")
+    '''
