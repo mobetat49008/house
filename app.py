@@ -1,6 +1,6 @@
 from flask import Flask
 from flask import render_template
-from Sinopac_Futures import list_accounts,list_position
+from Sinopac_Futures import list_accounts,list_position,get_stock_balance
 
 import shioaji as sj
 import pandas as pd
@@ -29,17 +29,31 @@ def main():
 
         # Convert keys in the dictionary to strings
         code_to_name = {str(key): value for key, value in zip(df_json[2], df_json[3])}
-
+        print(df_positions)
         # Assuming 'code' column in df_positions is a string, convert it to integer for proper mapping
         df_positions['code'] = df_positions['code'].astype(str)
 
         # Map the code to Chinese names, insert a new column
         df_positions['Chinese Name'] = df_positions['code'].map(code_to_name)
+        
+        # Calculate Profit Percentage, format it to two decimal places with a '%' sign, or handle zero division
+        df_positions['Profit Percentage'] = df_positions.apply(
+            lambda row: "{:.2f}%".format((row['last_price'] - row['price']) / row['price'] * 100) 
+                        if row['price'] != 0 else 'N/A',
+            axis=1
+        )
+
+        # Calculate the sum of 'price', 'last_price', and 'pnl'
+        total_price = int((df_positions['price']*df_positions['quantity']).sum() * 1000)
+        total_last_price = int((df_positions['last_price']*df_positions['quantity']).sum() * 1000)
+        total_pnl = df_positions['pnl'].sum()
 
         # Convert DataFrame to list of dicts for Jinja2 rendering
         data = df_positions.to_dict(orient='records')
 
-    return render_template('main.html', positions=data)
+        balance = get_stock_balance(api)
+        accountBalance = balance.acc_balance
+    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance)
 
 if __name__ == '__main__':
 

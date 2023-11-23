@@ -11,8 +11,23 @@
 	html,body,h1,h2,h3,h4,h5 {font-family: "Raleway", sans-serif}
     <!-- Add any additional CSS or head elements here -->
     <style>
-        .positive { color: green; }
-        .negative { color: red; }
+		.positive {
+			color: green;
+		}
+
+		.negative {
+			color: red;
+		}
+		.w3-table tr:hover {
+            background-color: #f5f5f5;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+		.summary-row {
+			white-space: nowrap;
+			overflow-x: auto; /* Adds horizontal scroll if content overflows */
+		}
     </style>
 </style>
 </head>
@@ -114,6 +129,18 @@
     <div class="w3-row-padding" style="margin:0 -16px">
       <div class="w3-twothird">
         <h5>Stock</h5>
+			<tr class="summary-row">
+				<td><strong>Total Price:</strong> <span style="font-weight: normal;">{{ total_price }}</span></td>
+				<td><strong>Total Last Price:</strong> <span style="font-weight: normal;">{{ total_last_price }}</span></td>
+				<td><strong>Total PnL:</strong> <span style="font-weight: normal;">{{ total_pnl }}</span></td>
+				<!-- New field for PnL ratio -->
+				<td><strong>PnL Ratio:</strong> 
+					<span style="font-weight: normal;">
+						{{ "%.2f" | format(total_pnl / total_price * 100 if total_price != 0 else 0) }}%
+					</span>
+				</td>
+			</tr>
+		<td><strong>AccountBalance:</strong> <span style="font-weight: normal;">{{ accountBalance }}</span></td>
 		<table class="w3-table w3-striped w3-white">
 			<!-- Table Headers -->
 			<tr>
@@ -124,6 +151,7 @@
 				<th>Quantity</th>
 				<th>Price</th>
 				<th>Last Price</th>
+				<th>Profit Ratio</th>
 				<th>PnL</th>
 			</tr>
 
@@ -137,6 +165,7 @@
 				<td>{{ position.quantity }}</td>
 				<td>{{ position.price }}</td>
 				<td>{{ position.last_price }}</td>
+				<td>{{ position['Profit Percentage'] }}</td>
 				<!-- Conditional Formatting for PnL -->
 				<td class="{{ 'positive' if position.pnl > 0 else 'negative' }}">{{ position.pnl }}</td>
 			</tr>
