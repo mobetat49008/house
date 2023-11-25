@@ -87,6 +87,28 @@
         width: 100%; /* Full width of the container */
         margin-top: 20px; /* Space between the flex container and the table */
     }
+	
+	/* Responsive adjustments */
+    @media screen and (max-width: 768px) {
+        .flex-container {
+            flex-direction: column; /* Stack elements vertically on small screens */
+        }
+
+        .summary-row, .chart-container {
+            flex-basis: auto; /* Reset the basis to auto for mobile layout */
+            width: 100%; /* Full width for small screens */
+            margin-right: 0; /* Remove right margin on small screens */
+        }
+
+        .chart-canvas {
+            max-width: 100%; /* Full width within the container */
+            max-height: 200px; /* Optional: limit the height of the chart */
+        }
+
+        #dataTable {
+            margin-top: 10px;
+        }
+    }
     </style>
 </style>
 </head>
