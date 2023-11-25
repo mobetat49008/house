@@ -29,30 +29,39 @@ def stock_data():
     if api:
         usage = api.usage()
         print(f"connection:{usage.connections},remaining_bytes:{usage.remaining_bytes}")
-        # Same logic as in your main() function
-        df_positions = list_position(api,"Stock")
+        
+        df_positions = list_position(api, "Stock")
         df_json = pd.read_json('stock_number.json', orient='records', lines=True)
         code_to_name = {str(key): value for key, value in zip(df_json[2], df_json[3])}
         
         df_positions['code'] = df_positions['code'].astype(str)
         df_positions['Chinese Name'] = df_positions['code'].map(code_to_name)
+
+        # Calculate 'Profit Percentage' as float for sorting
         df_positions['Profit Percentage'] = df_positions.apply(
-            lambda row: "{:.2f}%".format((row['last_price'] - row['price']) / row['price'] * 100) 
-                        if row['price'] != 0 else 'N/A',
+            lambda row: (row['last_price'] - row['price']) / row['price'] * 100 if row['price'] != 0 else None,
             axis=1
         )
-        total_price = int((df_positions['price']*df_positions['quantity']).sum() * 1000)
-        total_last_price = int((df_positions['last_price']*df_positions['quantity']).sum() * 1000)
+
+        total_price = int((df_positions['price'] * df_positions['quantity']).sum() * 1000)
+        total_last_price = int((df_positions['last_price'] * df_positions['quantity']).sum() * 1000)
         total_pnl = df_positions['pnl'].sum()
 
-        # Calculate the percentage of total price for each stock. The reason to * 1000 is because total price has *1000.
-        df_positions['Stock Percentage'] = (df_positions['price'] * df_positions['quantity'] * 1000/ total_price * 100).apply(lambda x: "{:.2f}%".format(x))
+        # Calculate 'Stock Percentage' as float for sorting
+        df_positions['Stock Percentage'] = df_positions['price'] * df_positions['quantity'] * 1000 / total_price * 100
+
+        # Sort and get top 10 for 'Profit Percentage' and 'Stock Percentage'
+        top_profit = df_positions.nlargest(10, 'Profit Percentage')[['Chinese Name', 'Profit Percentage']]
+        top_stock = df_positions.nlargest(10, 'Stock Percentage')[['Chinese Name', 'Stock Percentage']]
+
+        # Convert back to string format with '%' for display
+        top_profit['Profit Percentage'] = top_profit['Profit Percentage'].apply(lambda x: f'{x:.2f}%')
+        top_stock['Stock Percentage'] = top_stock['Stock Percentage'].apply(lambda x: f'{x:.2f}%')
 
         data = df_positions.to_dict(orient='records')
         balance = get_stock_balance(api)
         accountBalance = balance.acc_balance
 
-        # Example usage in your route
         for position in data:
             for key, value in position.items():
                 position[key] = replace_nan(value)
@@ -63,7 +72,9 @@ def stock_data():
             "total_price": total_price,
             "total_last_price": total_last_price,
             "total_pnl": total_pnl,
-            "accountBalance": accountBalance
+            "accountBalance": accountBalance,
+            "top_profit_data": top_profit.to_dict(orient='records'),
+            "top_stock_data": top_stock.to_dict(orient='records')
         }
         return jsonify(response_data)
 

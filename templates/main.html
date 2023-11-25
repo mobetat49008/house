@@ -55,6 +55,38 @@
 			font: inherit; /* Inherits the font styles from parent */
 			color: inherit; /* Inherits the color from the current class (selected or unselected) */
 		}
+		
+    .flex-container {
+        display: flex;
+        align-items: stretch; /* Align items vertically */
+    }
+
+    .summary-row {
+        flex-basis: 10%; /* Allocate specific portion of the space to summary row */
+        display: flex;
+        flex-direction: column; /* Display content vertically */
+        justify-content: center;
+        align-items: flex-start; /* Align content to the start (left) */
+        padding: 10px; /* Padding for spacing */
+    }
+
+    .chart-container {
+        flex-basis: 45%; /* Allocate specific portion of the space to each chart */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 5px; /* Padding for spacing */
+    }
+
+    .chart-canvas {
+        max-width: 100%; /* Ensure the chart does not overflow its container */
+        height: auto; /* Maintain aspect ratio */
+    }
+
+    #dataTable {
+        width: 100%; /* Full width of the container */
+        margin-top: 20px; /* Space between the flex container and the table */
+    }
     </style>
 </style>
 </head>
@@ -108,16 +140,24 @@
           <h5 id="stockOption" class="selected" style="margin-right: 20px;">Stock</h5>
           <button id="futuresButton" class="unselected">Futures</button>
         </div>
-
-		<div class="summary-row">
-			<!-- Reordered fields according to your requirement -->
-			<strong>Total Price:</strong> <span id="totalPrice" style="font-weight: normal;"></span><br>
-			<strong>Total Last Price:</strong> <span id="totalLastPrice" style="font-weight: normal;"></span><br>
-			<strong>Total PnL:</strong> <span id="totalPnL" style="font-weight: normal;"></span><br>
-			<strong>PnL Ratio:</strong> <span id="pnlRatio" style="font-weight: normal;"></span><br>
-			<strong>Account Balance:</strong> <span id="accountBalance" style="font-weight: normal;"></span>
+		<div class="flex-container">
+			<div class="summary-row">
+				<!-- Reordered fields according to your requirement -->
+				<strong>Total Price:</strong> <span id="totalPrice" style="font-weight: normal;"></span><br>
+				<strong>Total Last Price:</strong> <span id="totalLastPrice" style="font-weight: normal;"></span><br>
+				<strong>Total PnL:</strong> <span id="totalPnL" style="font-weight: normal;"></span><br>
+				<strong>PnL Ratio:</strong> <span id="pnlRatio" style="font-weight: normal;"></span><br>
+				<strong>Account Balance:</strong> <span id="accountBalance" style="font-weight: normal;"></span>
+			</div>
+			
+			<!-- Charts -->
+			<div class="chart-container">
+				<canvas id="profitChart" class="chart-canvas"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="stockChart" class="chart-canvas"></canvas>
+			</div>
 		</div>
-
         <table class="w3-table w3-striped w3-white" id="dataTable">
           <tr>
 			<th id="header-id">ID</th>
@@ -148,6 +188,7 @@
 
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 $(document).ready(function(){
     let positions = []; // Global variable to store position data
@@ -179,6 +220,7 @@ $(document).ready(function(){
             success: function(response){
                 positions = response.positions;
                 updateTable(positions, 'stock', response);
+				plotCharts(response.top_profit_data, response.top_stock_data); // Call the plotting function here
             },
             error: function(xhr, textStatus, errorThrown) {
                 console.error("Error in stock data request. Status:", xhr.status, "Status Text:", textStatus, "Error Thrown:", errorThrown);
@@ -206,6 +248,9 @@ $(document).ready(function(){
 
         positions.forEach(function(position, index) {
             var pnlClass = position.pnl > 0 ? 'positive' : 'negative';
+			// Format 'Profit Percentage' and 'Stock Percentage'
+			var formattedProfitPercentage = parseFloat(position['Profit Percentage']).toFixed(2) + '%';
+			var formattedStockPercentage = parseFloat(position['Stock Percentage']).toFixed(2) + '%';
             var row = '<tr>' +
                 '<td>' + (index + 1) + '</td>' +
                 '<td>' + position.code + '</td>' +
@@ -214,9 +259,9 @@ $(document).ready(function(){
                 '<td>' + position.quantity + '</td>' +
                 '<td>' + position.price + '</td>' +
                 '<td>' + position.last_price + '</td>' +
-                '<td>' + position['Profit Percentage'] + '</td>' +
+                '<td>' + formattedProfitPercentage + '</td>' +
                 '<td class="' + pnlClass + '">' + position.pnl + '</td>' +
-                '<td>' + (position['Stock Percentage'] || 'N/A') + '</td>' +
+                '<td>' + (formattedStockPercentage || 'N/A') + '</td>' +
                 '</tr>';
             table.append(row);
         });
@@ -267,6 +312,34 @@ $(document).ready(function(){
         });
 
         updateTable(positions, currentType, { total_price: $('#totalPrice').text(), total_last_price: $('#totalLastPrice').text(), total_pnl: $('#totalPnL').text(), accountBalance: $('#accountBalance').text() });
+    }
+
+    function plotCharts(profitData, stockData) {
+        // Assuming you have two canvas elements in your HTML with the IDs 'profitChart' and 'stockChart'
+
+        new Chart(document.getElementById('profitChart'), {
+            type: 'bar',
+            data: {
+                labels: profitData.map(item => item['Chinese Name']),
+                datasets: [{
+                    label: 'Profit Ratio (%)',
+                    data: profitData.map(item => parseFloat(item['Profit Percentage'])),
+                    backgroundColor: 'blue'
+                }]
+            }
+        });
+
+        new Chart(document.getElementById('stockChart'), {
+            type: 'bar',
+            data: {
+                labels: stockData.map(item => item['Chinese Name']),
+                datasets: [{
+                    label: 'Stock %',
+                    data: stockData.map(item => parseFloat(item['Stock Percentage'])),
+                    backgroundColor: 'green'
+                }]
+            }
+        });
     }
 
     // Attach click handlers to headers for sorting
