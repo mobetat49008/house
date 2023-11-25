@@ -71,14 +71,27 @@ def get_stock_settlements(api):
     print(settlements)
     
     return settlements
+def list_margin(api):
 
-def list_position(api):
+    margin = api.margin(api.futopt_account)
+    print(margin.equity)
+    return margin
     
-    positions = api.list_positions(api.stock_account)
-    # Set the option to display all columns
-    pd.set_option('display.max_columns', None)
+def list_position(api,account):
 
-    df = pd.DataFrame(s.__dict__ for s in positions)
+    positions = None
+    if account == "Stock":
+        positions = api.list_positions(api.stock_account)
+        df = pd.DataFrame(s.__dict__ for s in positions)
+    elif account == "Futures":
+        positions = api.list_positions(api.futopt_account)
+        df = pd.DataFrame(p.__dict__ for p in positions)
+        print(f"WEI---{positions}")
+
+    # Set the option to display all columns
+    #pd.set_option('display.max_columns', None)
+
+    #df = pd.DataFrame(s.__dict__ for s in positions)
     #print(df)
 
     return df
