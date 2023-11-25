@@ -187,7 +187,7 @@
 			<th id="header-name">Name</th>
 			<th id="header-direction">Direction</th>
 			<th id="header-quantity">Quantity</th>
-			<th id="header-price">Price</th>
+			<th id="header-price">Cost</th>
 			<th id="header-last-price">Last Price</th>
 			<th id="header-profit-ratio">Profit Ratio</th>
 			<th id="header-pnl">PnL</th>
@@ -336,7 +336,7 @@ $(document).ready(function(){
         updateTable(positions, currentType, { total_price: $('#totalPrice').text(), total_last_price: $('#totalLastPrice').text(), total_pnl: $('#totalPnL').text(), accountBalance: $('#accountBalance').text() });
     }
 
-    function plotCharts(profitData, stockData) {
+    function plotCharts(profitData, stockData, pnlData) { 
         // Assuming you have two canvas elements in your HTML with the IDs 'profitChart' and 'stockChart'
 
         new Chart(document.getElementById('profitChart'), {
@@ -344,24 +344,39 @@ $(document).ready(function(){
             data: {
                 labels: profitData.map(item => item['Chinese Name']),
                 datasets: [{
-                    label: 'Profit Ratio (%)',
-                    data: profitData.map(item => parseFloat(item['Profit Percentage'])),
+                    label: 'PnL(Profit and Lost)',
+                    data: profitData.map(item => parseFloat(item['pnl'])),
                     backgroundColor: 'blue'
                 }]
             }
         });
 
-        new Chart(document.getElementById('stockChart'), {
-            type: 'bar',
-            data: {
-                labels: stockData.map(item => item['Chinese Name']),
-                datasets: [{
-                    label: 'Stock %',
-                    data: stockData.map(item => parseFloat(item['Stock Percentage'])),
-                    backgroundColor: 'green'
-                }]
-            }
-        });
+		var stockChart = new Chart(document.getElementById('stockChart'), {
+			type: 'bar',
+			data: {
+				labels: stockData.map(item => item['Chinese Name']),
+				datasets: [{
+					label: 'Stock %',
+					data: stockData.map(item => parseFloat(item['Stock Percentage'])),
+					backgroundColor: 'green',
+					// Assuming you have a PnL value for each item in the same order
+					pnlData: pnlData // This should be an array of PnL values
+				}]
+			},
+			options: {
+				tooltips: {
+					callbacks: {
+						label: function(tooltipItem, data) {
+							var label = data.datasets[tooltipItem.datasetIndex].label || '';
+							var value = tooltipItem.yLabel;
+							var pnlValue = data.datasets[tooltipItem.datasetIndex].pnlData[tooltipItem.index];
+							return label + ': ' + value + '%, PnL: ' + pnlValue;
+						}
+					}
+				},
+				// ... other chart options ...
+			}
+		});
     }
 
     // Attach click handlers to headers for sorting

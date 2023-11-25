@@ -51,11 +51,11 @@ def stock_data():
         df_positions['Stock Percentage'] = df_positions['price'] * df_positions['quantity'] * 1000 / total_price * 100
 
         # Sort and get top 10 for 'Profit Percentage' and 'Stock Percentage'
-        top_profit = df_positions.nlargest(10, 'Profit Percentage')[['Chinese Name', 'Profit Percentage']]
+        top_profit = df_positions.nlargest(10, 'pnl')[['Chinese Name', 'pnl']]
         top_stock = df_positions.nlargest(10, 'Stock Percentage')[['Chinese Name', 'Stock Percentage']]
 
         # Convert back to string format with '%' for display
-        top_profit['Profit Percentage'] = top_profit['Profit Percentage'].apply(lambda x: f'{x:.2f}%')
+        #top_profit['Profit Percentage'] = top_profit['Profit Percentage'].apply(lambda x: f'{x:.2f}%')
         top_stock['Stock Percentage'] = top_stock['Stock Percentage'].apply(lambda x: f'{x:.2f}%')
 
         data = df_positions.to_dict(orient='records')
@@ -66,6 +66,8 @@ def stock_data():
             for key, value in position.items():
                 position[key] = replace_nan(value)
 
+        # Convert the 'pnl' column from DataFrame to a list
+        pnl_data = df_positions['pnl'].tolist()
         # Package everything into a dictionary to be returned as JSON
         response_data = {
             "positions": data,
@@ -74,7 +76,8 @@ def stock_data():
             "total_pnl": total_pnl,
             "accountBalance": accountBalance,
             "top_profit_data": top_profit.to_dict(orient='records'),
-            "top_stock_data": top_stock.to_dict(orient='records')
+            "top_stock_data": top_stock.to_dict(orient='records'),
+            "pnl_data": pnl_data  # Add PnL data here
         }
         return jsonify(response_data)
 
