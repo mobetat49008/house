@@ -20,6 +20,18 @@ def replace_nan(val):
     if isinstance(val, float) and math.isnan(val):
         return None  # or return "" if you prefer an empty string
     return val
+    
+def get_dividend_data(excel_file_path):
+    try:
+        # Read the 'dividend' sheet
+        dividend_df = pd.read_excel(excel_file_path, sheet_name='dividend')
+        # Creating a dictionary for quick access to dividend data based on stock_id
+        dividend_dict = {str(key): value for key, value in dividend_df.set_index('stock_id')['2023dividend'].items()}
+
+        return dividend_dict
+    except Exception as e:
+        print(f"Error reading dividend data: {e}")
+        return {}
 
 @app.route('/stock_data')
 def stock_data():
@@ -62,9 +74,27 @@ def stock_data():
         balance = get_stock_balance(api)
         accountBalance = balance.acc_balance
 
+        dividend_dict = get_dividend_data(r'C:\Code\MachineLearning\StockRevenue\stock_revenue_statistics.xlsx')
         for position in data:
+            
             for key, value in position.items():
                 position[key] = replace_nan(value)
+
+            stock_code = str(position['code'])
+            position['2023dividend'] = dividend_dict.get(stock_code, 'N/A')
+            price_per_share = position.get('last_price', 1)  # Ensure this is the correct field for the share price
+            # Calculate Dividend Yield and handle cases where price_per_share is 0
+            if position['2023dividend'] != 'N/A':
+                try:
+                    # Convert dividend to a float for calculation
+                    dividend = float(position['2023dividend'])
+                    dividend_yield = (dividend / price_per_share) * 100 if price_per_share != 0 else 0
+                    position['Dividend Yield'] = round(dividend_yield, 2)  
+                except ValueError:
+                    print(f"Error in converting dividend: {position['2023dividend']}")
+                    position['Dividend Yield'] = 'Error'
+            else:
+                position['Dividend Yield'] = 'N/A'
 
         # Convert the 'pnl' column from DataFrame to a list
         pnl_data = df_positions['pnl'].tolist()

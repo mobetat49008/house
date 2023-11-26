@@ -192,6 +192,8 @@
 			<th id="header-profit-ratio">Profit Ratio</th>
 			<th id="header-pnl">PnL</th>
 			<th id="header-stock-percentage">Stock %</th>
+			<th id="header-dividend">Dividend</th>
+			<th>Dividend Yield (%)</th>
           </tr>
           <!-- Rows will be added dynamically by JavaScript -->
         </table>
@@ -284,6 +286,8 @@ $(document).ready(function(){
                 '<td>' + formattedProfitPercentage + '</td>' +
                 '<td class="' + pnlClass + '">' + position.pnl + '</td>' +
                 '<td>' + (formattedStockPercentage || 'N/A') + '</td>' +
+				'<td>' + position['2023dividend'] + '</td>' +
+				'<td>' + position['Dividend Yield'] + '</td>'
                 '</tr>';
             table.append(row);
         });
