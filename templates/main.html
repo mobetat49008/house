@@ -194,6 +194,8 @@
 			<th id="header-stock-percentage">Stock %</th>
 			<th id="header-dividend">Dividend</th>
 			<th>Dividend Yield (%)</th>
+			<th>MoM (%)</th>
+			<th>YoY (%)</th>
           </tr>
           <!-- Rows will be added dynamically by JavaScript -->
         </table>
@@ -287,7 +289,9 @@ $(document).ready(function(){
                 '<td class="' + pnlClass + '">' + position.pnl + '</td>' +
                 '<td>' + (formattedStockPercentage || 'N/A') + '</td>' +
 				'<td>' + position['2023dividend'] + '</td>' +
-				'<td>' + position['Dividend Yield'] + '</td>'
+				'<td>' + position['Dividend Yield'] + '</td>'+
+				'<td>' + position['2023MoM'] + '</td>'+
+				'<td>' + position['2023YoY'] + '</td>'+
                 '</tr>';
             table.append(row);
         });

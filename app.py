@@ -1,12 +1,13 @@
-from flask import Flask,render_template, jsonify
-from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
-
 import shioaji as sj
 import pandas as pd
 import json
 import pandas as pd
 import requests
 import math
+import os
+
+from flask import Flask,render_template, jsonify
+from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
 
 # Path to the JSON file
 configuration_file_path = r'C:\Code\Configuration\Sinopac_future.json'  # Replace with the actual path of your JSON file
@@ -33,11 +34,81 @@ def get_dividend_data(excel_file_path):
         print(f"Error reading dividend data: {e}")
         return {}
 
+def get_revenue_data(excel_file_path):
+    try:
+        # Read the 'Revenue' sheet
+        revenue_df = pd.read_excel(excel_file_path, sheet_name='Revenue')
+        
+        # Create a dictionary to hold the revenue data
+        revenue_dict = {}
+        
+        # Iterate over each row in the DataFrame to build a dictionary for each company
+        for index, row in revenue_df.iterrows():
+            company_code = str(row['CompanyCode'])
+            revenue_data = row.filter(like='_Revenue').to_dict()
+            revenue_dict[company_code] = revenue_data
+
+        #print(f"WEIII---{revenue_dict}")
+        return revenue_dict
+    except Exception as e:
+        print(f"Error reading revenue data: {e}")
+        return {}
+
+def calculate_mom_yoy(revenue_dict):
+    results = {}
+    
+    for company_code, revenues in revenue_dict.items():
+        # Sort the keys to find the latest month (which should be the rightmost column)
+        sorted_keys = sorted(revenues.keys(), key=lambda x: [int(i) for i in x.split('_')[:2]])
+        latest_month_key = sorted_keys[-1]  # The latest month key
+
+        # Extract year and month from the key
+        latest_year, latest_month = map(int, latest_month_key.split('_')[:2])
+        
+        # Calculate the keys for the same month last year and the last month
+        last_year_key = f"{latest_year - 1}_{latest_month:02d}_Revenue"
+        last_month = latest_month - 1 if latest_month > 1 else 12
+        last_month_year = latest_year if latest_month > 1 else latest_year - 1
+        last_month_key = f"{latest_year}_{last_month}_Revenue" if last_month >= 10 else f"{latest_year}_{last_month}_Revenue"
+
+        # Retrieve the revenue for the latest month, the previous month, and the same month of the previous year
+        latest_revenue = revenues.get(latest_month_key, 0)
+        last_month_revenue = revenues.get(last_month_key, 0)
+        last_year_revenue = revenues.get(last_year_key, 0)
+        
+        # Calculate MoM and YoY, handling cases where revenue for the previous period is zero or missing
+        mom = ((latest_revenue - last_month_revenue) / last_month_revenue * 100) if last_month_revenue else None
+        yoy = ((latest_revenue - last_year_revenue) / last_year_revenue * 100) if last_year_revenue else None
+        
+        # Format MoM and YoY as percentages with two decimal places
+        mom_formatted = f"{mom:.2f}%" if mom is not None else None
+        yoy_formatted = f"{yoy:.2f}%" if yoy is not None else None
+
+        # Store the formatted MoM and YoY in the results dictionary
+        results[company_code] = {
+            'MoM': mom_formatted,
+            'YoY': yoy_formatted
+        }
+
+    return results
+
+# To use this function:
+# calculated_results = calculate_mom_yoy(revenue_dict)
+# 'calculated_results' will contain MoM and YoY for each company in 'revenue_dict'
+
+
 @app.route('/stock_data')
 def stock_data():
     global api
     data = []
+    revenue = {}
 
+    # Get the current directory where the Python script is located
+    current_directory = os.path.dirname(__file__)
+
+    # Construct the relative path to the Excel file
+    excel_file_path = os.path.join(current_directory, 'StockRevenue', 'stock_revenue_statistics.xlsx')
+    
     if api:
         usage = api.usage()
         print(f"connection:{usage.connections},remaining_bytes:{usage.remaining_bytes}")
@@ -74,7 +145,9 @@ def stock_data():
         balance = get_stock_balance(api)
         accountBalance = balance.acc_balance
 
-        dividend_dict = get_dividend_data(r'C:\Code\MachineLearning\StockRevenue\stock_revenue_statistics.xlsx')
+        dividend_dict = get_dividend_data(excel_file_path)
+        revenue_dict = get_revenue_data(excel_file_path)
+        revenue = calculate_mom_yoy(revenue_dict)
         for position in data:
             
             for key, value in position.items():
@@ -82,6 +155,12 @@ def stock_data():
 
             stock_code = str(position['code'])
             position['2023dividend'] = dividend_dict.get(stock_code, 'N/A')
+            try:
+                position['2023MoM'] = revenue[stock_code]['MoM']
+                position['2023YoY'] = revenue[stock_code]['YoY']
+            except:
+                position['2023MoM'] = "N/A"
+                position['2023YoY'] = "N/A"
             price_per_share = position.get('last_price', 1)  # Ensure this is the correct field for the share price
             # Calculate Dividend Yield and handle cases where price_per_share is 0
             if position['2023dividend'] != 'N/A':
