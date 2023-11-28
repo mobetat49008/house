@@ -5,7 +5,10 @@ import pandas as pd
 import requests
 import math
 import os
+import datetime
 
+from datetime import datetime, timedelta
+from io import StringIO
 from flask import Flask,render_template, jsonify
 from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
 
@@ -15,6 +18,14 @@ app = Flask(__name__)
 
 # Global variable for the API
 api = None
+
+def get_appropriate_date():
+    """Determines the correct date based on the current time."""
+    now = datetime.now()
+    if now.hour < 15 or (now.hour == 15 and now.minute < 30):
+        return (now - timedelta(days=1)).strftime('%Y%m%d')
+    else:
+        return now.strftime('%Y%m%d')
 
 # Example function to replace NaN values
 def replace_nan(val):
@@ -92,10 +103,44 @@ def calculate_mom_yoy(revenue_dict):
 
     return results
 
-# To use this function:
-# calculated_results = calculate_mom_yoy(revenue_dict)
-# 'calculated_results' will contain MoM and YoY for each company in 'revenue_dict'
+def fetch_data(url, date):
+    """Fetches data from the specified URL for the given date."""
+    try:
+        response = requests.get(url.format(date), timeout=30)
+        response.raise_for_status()
+        return pd.read_html(response.text)
+    except requests.exceptions.Timeout:
+        return "N/A - Timeout occurred"
+    except requests.exceptions.HTTPError as e:
+        return f"N/A - HTTP Error: {e}"
+    except Exception as e:
+        return f"N/A - An error occurred: {e}"
 
+def format_dataframe(df):
+    """Formats the DataFrame, adjusting numerical values."""
+    df.columns = df.columns.droplevel()
+    for col in df.columns[1:]:
+        df[col] = (df[col] / 100000000).round(2)
+    return df
+
+def format_dataframe(df):
+    """Formats the DataFrame, adjusting numerical values."""
+    df.columns = df.columns.droplevel()
+    for col in df.columns[1:]:
+        df[col] = (df[col] / 100000000).round(2)
+    return df
+
+@app.route('/financial_data')
+def financial_data():
+    date_to_use = get_appropriate_date()
+    print(date_to_use)
+    raw_data = fetch_data("http://www.twse.com.tw/fund/BFI82U?response=html&dayDate={0}", date_to_use)
+    print("Wei")
+    if isinstance(raw_data, list) and len(raw_data) > 0:
+        formatted_df = format_dataframe(raw_data[0])
+        return formatted_df.to_json(orient='records')
+    else:
+        return jsonify({"error": str(raw_data)})
 
 @app.route('/stock_data')
 def stock_data():
@@ -229,6 +274,17 @@ def main():
     data = []
 
     if api:
+        # Fetch and process the new data
+        url = "http://www.twse.com.tw/fund/BFI82U?response=html&dayDate={0}"
+        date_to_use = get_appropriate_date()
+        raw_data = fetch_data(url, date_to_use)
+
+        financial_data_html = ""
+        if isinstance(raw_data, list) and len(raw_data) > 0:
+            formatted_df = format_dataframe(raw_data[0])
+            financial_data_html = formatted_df.to_html(classes='w3-table w3-striped w3-white')
+        else:
+            financial_data_html = "<p>Error fetching financial data: " + str(raw_data) + "</p>"
         # Get the DataFrame from list_position
         df_positions = list_position(api,"Stock")
 
@@ -263,7 +319,8 @@ def main():
 
         balance = get_stock_balance(api)
         accountBalance = balance.acc_balance
-    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance)
+    print(f"WEI----{financial_data_html}")
+    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html)
 
 if __name__ == '__main__':
 

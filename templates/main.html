@@ -11,6 +11,7 @@
 	html,body,h1,h2,h3,h4,h5 {font-family: "Raleway", sans-serif}
     <!-- Add any additional CSS or head elements here -->
     <style>
+
 		.positive {
 			color: green;
 		}
@@ -57,6 +58,7 @@
 		}
 		
     .flex-container {
+	
         display: flex;
         align-items: stretch; /* Align items vertically */
     }
@@ -70,6 +72,11 @@
         padding: 10px; /* Padding for spacing */
     }
 
+	.content-container {
+		display: flex;
+		align-items: start; /* Aligns items to the start of the container */
+	}
+	
     .chart-container {
         flex-basis: 45%; /* Allocate specific portion of the space to each chart */
         display: flex;
@@ -79,7 +86,7 @@
     }
 
     .chart-canvas {
-        max-width: 100%; /* Ensure the chart does not overflow its container */
+        /*max-width: 100%;*/ /* Ensure the chart does not overflow its container */
         height: auto; /* Maintain aspect ratio */
     }
 
@@ -109,19 +116,58 @@
             margin-top: 10px;
         }
     }
+#financialDataContainer {
+	flex: 1; /* Adjust the flex grow/shrink/basis as needed */
+    flex-basis: 300px; /* Fixed width for the financial data container */
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: white;
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-left: 10px; /* Adds some space between this container and the flex-container */
+}
+
+.sidebar-hidden {
+    display: none !important;
+}
     </style>
 </style>
 </head>
 <body class="w3-light-grey">
 
+<script>
+function hideSidebar() {
+    var sidebar = document.getElementById('mySidebar');
+    var mainContent = document.getElementsByClassName('w3-main')[0];
+
+    // Check the current width of the sidebar to determine its state
+    if (sidebar.style.width === '0px' || sidebar.style.width === '') {
+        // Sidebar is currently hidden, so show it
+        sidebar.style.width = '300px';
+        mainContent.style.marginLeft = '300px';
+    } else {
+        // Sidebar is currently shown, so hide it
+        sidebar.style.width = '0px';
+        mainContent.style.marginLeft = '0px';
+    }
+}
+
+
+</script>
 <!-- Top container -->
 <div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
-  <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey" onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
+  <!-- Original Menu Button -->
+  <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey" onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
+
+  <!-- Toggle Sidebar Button -->
+  <button class="w3-bar-item w3-button w3-black" onclick="hideSidebar()">&#9776;</button>
+
+  <!-- Logo or other items -->
   <span class="w3-bar-item w3-right">Logo</span>
 </div>
 
 <!-- Sidebar/menu -->
-<nav class="w3-sidebar w3-collapse w3-white w3-animate-left" style="z-index:3;width:300px;" id="mySidebar"><br>
+<nav class="w3-sidebar w3-collapse w3-black w3-animate-left" style="z-index:3;width:300px;" id="mySidebar"><br>
   <div class="w3-container w3-row">
     <div class="w3-col s4">
       <img src="/w3images/avatar2.png" class="w3-circle w3-margin-right" style="width:46px">
@@ -143,7 +189,6 @@
   </div>
 </nav>
 
-
 <!-- Overlay effect when opening sidebar on small screens -->
 <div class="w3-overlay w3-hide-large w3-animate-opacity" onclick="w3_close()" style="cursor:pointer" title="close side menu" id="myOverlay"></div>
 
@@ -162,22 +207,28 @@
           <h5 id="stockOption" class="selected" style="margin-right: 20px;">Stock</h5>
           <button id="futuresButton" class="unselected">Futures</button>
         </div>
-		<div class="flex-container">
-			<div class="summary-row">
-				<!-- Reordered fields according to your requirement -->
-				<strong>Total Price:</strong> <span id="totalPrice" style="font-weight: normal;"></span><br>
-				<strong>Total Last Price:</strong> <span id="totalLastPrice" style="font-weight: normal;"></span><br>
-				<strong>Total PnL:</strong> <span id="totalPnL" style="font-weight: normal;"></span><br>
-				<strong>PnL Ratio:</strong> <span id="pnlRatio" style="font-weight: normal;"></span><br>
-				<strong>Account Balance:</strong> <span id="accountBalance" style="font-weight: normal;"></span>
+		<div class="content-container">
+			<div class="flex-container">
+				<div class="summary-row">
+					<!-- Reordered fields according to your requirement -->
+					<strong>Total Price:</strong> <span id="totalPrice" style="font-weight: normal;"></span><br>
+					<strong>Total Last Price:</strong> <span id="totalLastPrice" style="font-weight: normal;"></span><br>
+					<strong>Total PnL:</strong> <span id="totalPnL" style="font-weight: normal;"></span><br>
+					<strong>PnL Ratio:</strong> <span id="pnlRatio" style="font-weight: normal;"></span><br>
+					<strong>Account Balance:</strong> <span id="accountBalance" style="font-weight: normal;"></span>
+				</div>
+				
+				<!-- Charts -->
+				<div class="chart-container">
+					<canvas id="profitChart" class="chart-canvas"></canvas>
+				</div>
+				<div class="chart-container">
+					<canvas id="stockChart" class="chart-canvas"></canvas>
+				</div>
+
 			</div>
-			
-			<!-- Charts -->
-			<div class="chart-container">
-				<canvas id="profitChart" class="chart-canvas"></canvas>
-			</div>
-			<div class="chart-container">
-				<canvas id="stockChart" class="chart-canvas"></canvas>
+			<div id="financialDataContainer">
+					{{ financial_data_html | safe }}
 			</div>
 		</div>
         <table class="w3-table w3-striped w3-white" id="dataTable">
@@ -199,7 +250,10 @@
           </tr>
           <!-- Rows will be added dynamically by JavaScript -->
         </table>
+
       </div>
+
+	  
     </div>
   </div>
   <hr>
@@ -211,8 +265,6 @@
 
   <!-- End page content -->
 </div>
-
-
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -226,7 +278,6 @@ $(document).ready(function(){
 
     // Fetch stock data on page load
     fetchStockData();
-
     $('#stockOption').click(function(){
         currentType = 'stock';
         fetchStockData();
