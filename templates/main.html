@@ -290,8 +290,8 @@ $(document).ready(function(){
                 '<td>' + (formattedStockPercentage || 'N/A') + '</td>' +
 				'<td>' + position['2023dividend'] + '</td>' +
 				'<td>' + position['Dividend Yield'] + '</td>'+
-				'<td>' + position['2023MoM'] + '</td>'+
-				'<td>' + position['2023YoY'] + '</td>'+
+				'<td class="' + (parseFloat(position['2023MoM']) >= 0 ? 'positive' : 'negative') + '">' + position['2023MoM'] + '</td>' +
+				'<td class="' + (parseFloat(position['2023YoY']) >= 0 ? 'positive' : 'negative') + '">' + position['2023YoY'] + '</td>' +
                 '</tr>';
             table.append(row);
         });
