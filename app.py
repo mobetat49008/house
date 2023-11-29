@@ -123,22 +123,15 @@ def format_dataframe(df):
         df[col] = (df[col] / 100000000).round(2)
     return df
 
-def format_dataframe(df):
-    """Formats the DataFrame, adjusting numerical values."""
-    df.columns = df.columns.droplevel()
-    for col in df.columns[1:]:
-        df[col] = (df[col] / 100000000).round(2)
-    return df
-
 @app.route('/financial_data')
 def financial_data():
     date_to_use = get_appropriate_date()
-    print(date_to_use)
     raw_data = fetch_data("http://www.twse.com.tw/fund/BFI82U?response=html&dayDate={0}", date_to_use)
-    print("Wei")
+    print("WEIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
     if isinstance(raw_data, list) and len(raw_data) > 0:
         formatted_df = format_dataframe(raw_data[0])
-        return formatted_df.to_json(orient='records')
+        #return formatted_df.to_json(orient='records')
+        return render_template('main.html', date_to_use=date_to_use, formatted_data=formatted_df.to_json(orient='records'))
     else:
         return jsonify({"error": str(raw_data)})
 
@@ -272,7 +265,7 @@ def futures_data():
 def main():
     global api
     data = []
-
+    date_to_use = get_appropriate_date()
     if api:
         # Fetch and process the new data
         url = "http://www.twse.com.tw/fund/BFI82U?response=html&dayDate={0}"
@@ -319,8 +312,8 @@ def main():
 
         balance = get_stock_balance(api)
         accountBalance = balance.acc_balance
-    print(f"WEI----{financial_data_html}")
-    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html)
+
+    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html, date_to_use=date_to_use)
 
 if __name__ == '__main__':
 

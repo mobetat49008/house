@@ -62,7 +62,10 @@
         display: flex;
         align-items: stretch; /* Align items vertically */
     }
-
+.table-flex-container {
+    display: flex;
+    flex-wrap: nowrap; /* Keeps elements side by side */
+}
     .summary-row {
         flex-basis: 10%; /* Allocate specific portion of the space to summary row */
         display: flex;
@@ -90,43 +93,46 @@
         height: auto; /* Maintain aspect ratio */
     }
 
-    #dataTable {
-        width: 100%; /* Full width of the container */
-        margin-top: 20px; /* Space between the flex container and the table */
-    }
-	
-	/* Responsive adjustments */
-    @media screen and (max-width: 768px) {
-        .flex-container {
-            flex-direction: column; /* Stack elements vertically on small screens */
-        }
-
-        .summary-row, .chart-container {
-            flex-basis: auto; /* Reset the basis to auto for mobile layout */
-            width: 100%; /* Full width for small screens */
-            margin-right: 0; /* Remove right margin on small screens */
-        }
-
-        .chart-canvas {
-            max-width: 100%; /* Full width within the container */
-            max-height: 200px; /* Optional: limit the height of the chart */
-        }
-
-        #dataTable {
-            margin-top: 10px;
-        }
-    }
 #financialDataContainer {
-	flex: 1; /* Adjust the flex grow/shrink/basis as needed */
-    flex-basis: 300px; /* Fixed width for the financial data container */
-    max-height: 400px;
-    overflow-y: auto;
+    flex: 1; /* Allows the container to grow */
     background-color: white;
     border: 1px solid #ddd;
     padding: 10px;
-    margin-left: 10px; /* Adds some space between this container and the flex-container */
+    /* Additional CSS for square aspect ratio */
+    position: relative; /* Important for absolute positioning of content */
+	white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
+/* Content inside the container */
+.content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Add your content styling here */
+}
+.table-container {
+    flex: 0 0 auto; /* Prevents the table container from shrinking */
+    min-width: 100%; /* Ensures a minimum width */
+}
+
+#dataTable {
+    width: auto; /* Allows natural expansion based on content */
+    table-layout: auto; /* Adjusts column widths based on content */
+}
+
+@media screen and (max-width: 768px) {
+    .flex-container {
+        flex-direction: column;
+    }
+
+    #financialDataContainer, .table-container {
+        width: auto; /* Allows natural expansion on smaller screens */
+        flex: none; /* Resets the flex */
+    }
+}
 .sidebar-hidden {
     display: none !important;
 }
@@ -227,35 +233,42 @@ function hideSidebar() {
 				</div>
 
 			</div>
+
+		</div>
+		<div class="table-flex-container">
+			<div class="table-container">
+				<table class="w3-table w3-striped w3-white" id="dataTable">
+				  <tr>
+					<th id="header-id">ID</th>
+					<th id="header-code">Code</th>
+					<th id="header-name">Name</th>
+					<th id="header-direction">Direction</th>
+					<th id="header-quantity">Quantity</th>
+					<th id="header-price">Cost</th>
+					<th id="header-last-price">Last Price</th>
+					<th id="header-profit-ratio">Profit Ratio</th>
+					<th id="header-pnl">PnL</th>
+					<th id="header-stock-percentage">Stock %</th>
+					<th id="header-dividend">Dividend</th>
+					<th>Dividend Yield (%)</th>
+					<th>MoM (%)</th>
+					<th>YoY (%)</th>
+				  </tr>
+				  <!-- Rows will be added dynamically by JavaScript -->
+				</table>
+			</div>
 			<div id="financialDataContainer">
+			<h2>{{ date_to_use }} 三大法人買賣金額統計表</h2>
 					{{ financial_data_html | safe }}
 			</div>
 		</div>
-        <table class="w3-table w3-striped w3-white" id="dataTable">
-          <tr>
-			<th id="header-id">ID</th>
-			<th id="header-code">Code</th>
-			<th id="header-name">Name</th>
-			<th id="header-direction">Direction</th>
-			<th id="header-quantity">Quantity</th>
-			<th id="header-price">Cost</th>
-			<th id="header-last-price">Last Price</th>
-			<th id="header-profit-ratio">Profit Ratio</th>
-			<th id="header-pnl">PnL</th>
-			<th id="header-stock-percentage">Stock %</th>
-			<th id="header-dividend">Dividend</th>
-			<th>Dividend Yield (%)</th>
-			<th>MoM (%)</th>
-			<th>YoY (%)</th>
-          </tr>
-          <!-- Rows will be added dynamically by JavaScript -->
-        </table>
 
       </div>
 
 	  
     </div>
   </div>
+
   <hr>
   <!-- Footer -->
   <footer class="w3-container w3-padding-16 w3-light-grey">
@@ -437,6 +450,15 @@ $(document).ready(function(){
 			}
 		});
     }
+
+function adjustSquare() {
+    var container = document.getElementById('financialDataContainer');
+    var width = container.offsetWidth;
+    container.style.height = width + 'px'; // Set height equal to current width
+}
+
+window.onload = adjustSquare;
+window.onresize = adjustSquare; // Adjust size on window resize
 
     // Attach click handlers to headers for sorting
     $('#header-id').click(() => sortPositions('id')); // Make sure 'id' is a property in your positions objects
