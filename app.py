@@ -6,11 +6,22 @@ import requests
 import math
 import os
 import datetime
+import time
+import threading
 
 from datetime import datetime, timedelta
 from io import StringIO
-from flask import Flask,render_template, jsonify
+from flask import Flask,render_template, jsonify,request
 from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
+from linebot import (
+    LineBotApi, WebhookHandler
+)
+from linebot.exceptions import (
+    InvalidSignatureError
+)
+from linebot.models import (
+    MessageEvent, TextMessage, TextSendMessage,
+)
 
 # Path to the JSON file
 configuration_file_path = r'C:\Code\Configuration\Sinopac_future.json'  # Replace with the actual path of your JSON file
@@ -18,6 +29,10 @@ app = Flask(__name__)
 
 # Global variable for the API
 api = None
+counter =0
+
+line_bot_api = LineBotApi('VHc381SO8ZVskAIWrcwr359MwdqQddLblA4R566bkF8wUVfdxf13dOa/eE5fk21I9DBZ1idtIDpty1b5PeeG4iQdk2aKeMprFaxn+TCyzNbPwRa8JwlPM/FftAfc9SOB10YEjRyDxJgM2DpbtRknFAdB04t89/1O/w1cDnyilFU=')
+handler = WebhookHandler('949ccb6111446334ec84f1dfba44ca2c')
 
 def get_appropriate_date():
     """Determines the correct date based on the current time."""
@@ -127,7 +142,7 @@ def format_dataframe(df):
 def financial_data():
     date_to_use = get_appropriate_date()
     raw_data = fetch_data("http://www.twse.com.tw/fund/BFI82U?response=html&dayDate={0}", date_to_use)
-    print("WEIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
+
     if isinstance(raw_data, list) and len(raw_data) > 0:
         formatted_df = format_dataframe(raw_data[0])
         #return formatted_df.to_json(orient='records')
@@ -315,6 +330,76 @@ def main():
 
     return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html, date_to_use=date_to_use)
 
+def read_counter():
+    try:
+        with open("counter.txt", "r") as file:
+            return file.read()
+    except FileNotFoundError:
+        return 0
+
+def write_counter(string):
+    with open("counter.txt", "w") as file:
+        file.write(str(string))
+
+def order_cb(stat, msg):
+
+    str_rst = read_counter()
+    print(f'my_order_callback-{str_rst}')
+    if str_rst == "False":
+        write_counter("True")
+        print(f"State:{stat}")
+        print(f"msg:{msg}")
+
+        
+        print(msg['order'])
+        if msg['order']['account']['account_type'] == "F":
+            op_type = msg['operation']['op_type']
+            print("Operation Type:", op_type)
+            order_price = msg['order']['price']
+            print(order_price)
+            order_action = msg['order']['action']
+            '''
+            line_bot_api.push_message(
+            to='C4fa4a825dc69190708d673cf07f14d0a', # replace with the group ID
+            messages=[TextSendMessage(text="倉別:"+f"{op_type}"+"多空:"+f"{order_action}"+f"委託價格:"+f"{order_price}")])
+            '''
+        write_counter("False")
+
+
+@app.route("/callback", methods=['POST'])
+def callback():
+    # get X-Line-Signature header value
+    signature = request.headers['X-Line-Signature']
+
+    # get request body as text
+    body = request.get_data(as_text=True)
+    app.logger.info("Request body: " + body)
+
+    # handle webhook body
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+
+    return 'OK'
+
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    print(event.message.text)
+    print(event)
+    '''
+    #msg = "FED is a gay group"
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=msg))
+    '''
+    if event.message.text == "Ben":
+        line_bot_api.push_message(
+        to='C4fa4a825dc69190708d673cf07f14d0a', # replace with the group ID
+        messages=[TextSendMessage(text='Saint Fuck University')]
+        )
+
 if __name__ == '__main__':
 
     # Reading the JSON file
@@ -344,6 +429,8 @@ if __name__ == '__main__':
     
     if not result:
         print(f"The CA status is {result}")
+
+    api.set_order_callback(order_cb)
 
     '''
     ################This section is to download the stock code################
