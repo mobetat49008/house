@@ -34,6 +34,12 @@ counter =0
 line_bot_api = LineBotApi('VHc381SO8ZVskAIWrcwr359MwdqQddLblA4R566bkF8wUVfdxf13dOa/eE5fk21I9DBZ1idtIDpty1b5PeeG4iQdk2aKeMprFaxn+TCyzNbPwRa8JwlPM/FftAfc9SOB10YEjRyDxJgM2DpbtRknFAdB04t89/1O/w1cDnyilFU=')
 handler = WebhookHandler('949ccb6111446334ec84f1dfba44ca2c')
 
+url = 'https://notify-api.line.me/api/notify'
+token = 'JGq9Hk4A6wIECngAAkSZj7KhAYqiu0ChaAbDYwwvdFv'
+headers = {
+    'Authorization': 'Bearer ' + token    # 設定權杖
+}
+
 def get_appropriate_date():
     """Determines the correct date based on the current time."""
     now = datetime.now()
@@ -118,18 +124,30 @@ def calculate_mom_yoy(revenue_dict):
 
     return results
 
-def fetch_data(url, date):
-    """Fetches data from the specified URL for the given date."""
-    try:
-        response = requests.get(url.format(date), timeout=30)
-        response.raise_for_status()
-        return pd.read_html(response.text)
-    except requests.exceptions.Timeout:
-        return "N/A - Timeout occurred"
-    except requests.exceptions.HTTPError as e:
-        return f"N/A - HTTP Error: {e}"
-    except Exception as e:
-        return f"N/A - An error occurred: {e}"
+def fetch_data(url, date_str):
+    max_retries = 10  # Adjust this number as needed
+    retry_count = 0
+
+    # Convert date string to datetime object
+    date = datetime.strptime(date_str, "%Y%m%d")
+
+    while retry_count < max_retries:
+        try:
+            formatted_date = date.strftime("%Y%m%d")
+            print(formatted_date)
+            response = requests.get(url.format(formatted_date), timeout=30)
+            response.raise_for_status()
+            return pd.read_html(response.text),formatted_date
+        except requests.exceptions.Timeout:
+            return "N/A - Timeout occurred"
+        except requests.exceptions.HTTPError as e:
+            return f"N/A - HTTP Error: {e}"
+        except Exception as e:
+            print(f"Attempt {retry_count + 1}: An error occurred - {e}")
+            date -= timedelta(days=1)  # Decrement the date by one day
+            retry_count += 1
+
+    return "N/A - Maximum retries reached"
 
 def format_dataframe(df):
     """Formats the DataFrame, adjusting numerical values."""
@@ -285,7 +303,7 @@ def main():
         # Fetch and process the new data
         url = "http://www.twse.com.tw/fund/BFI82U?response=html&dayDate={0}"
         date_to_use = get_appropriate_date()
-        raw_data = fetch_data(url, date_to_use)
+        raw_data,date_to_use = fetch_data(url, date_to_use)
 
         financial_data_html = ""
         if isinstance(raw_data, list) and len(raw_data) > 0:
@@ -328,7 +346,18 @@ def main():
         balance = get_stock_balance(api)
         accountBalance = balance.acc_balance
 
-    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html, date_to_use=date_to_use)
+        # Read the day JSON file
+        df = pd.read_json('future_institutional_investors_open_interest_day.json')
+
+        # Convert the DataFrame to HTML
+        json_data_html = df.to_html(classes='w3-table w3-striped w3-white')
+        
+        # Read the night JSON file
+        df_night = pd.read_json('future_institutional_investors_open_interest_night.json')
+
+        # Convert the DataFrame to HTML
+        json_data_html_night = df_night.to_html(classes='w3-table w3-striped w3-white')
+    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html, date_to_use=date_to_use,json_data_html=json_data_html,json_data_html_night=json_data_html_night)
 
 def read_counter():
     try:
@@ -388,17 +417,24 @@ def callback():
 def handle_message(event):
     print(event.message.text)
     print(event)
+    data = {
+    'message':'Saint Fuck University！'     # 設定要發送的訊息
+    }
     '''
     #msg = "FED is a gay group"
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=msg))
     '''
+    '''
     if event.message.text == "Ben":
         line_bot_api.push_message(
         to='C4fa4a825dc69190708d673cf07f14d0a', # replace with the group ID
         messages=[TextSendMessage(text='Saint Fuck University')]
         )
+    '''
+    if event.message.text == "Ben":
+        data = requests.post(url, headers=headers, data=data)   # 使用 POST 方法
 
 if __name__ == '__main__':
 
@@ -430,6 +466,7 @@ if __name__ == '__main__':
     if not result:
         print(f"The CA status is {result}")
 
+    print("WEIIII")
     api.set_order_callback(order_cb)
 
     '''

@@ -122,6 +122,10 @@
     width: auto; /* Allows natural expansion based on content */
     table-layout: auto; /* Adjusts column widths based on content */
 }
+#jsonDataTable {
+    width: 100%; /* Makes jsonDataTable take full width */
+    margin-top: 20px; /* Optional: Adds some space above jsonDataTable */
+}
 
 @media screen and (max-width: 768px) {
     .flex-container {
@@ -261,8 +265,20 @@ function hideSidebar() {
 			<h2>{{ date_to_use }} 三大法人買賣金額統計表</h2>
 					{{ financial_data_html | safe }}
 			</div>
-		</div>
+			
 
+		</div>
+			<!-- Display the JSON data -->
+			<div id="jsonDataTable">
+				<h2>{{ date_to_use }}三大法人期貨契約(交易口數多空淨額/未平倉餘額多空淨額)</h2>
+				{{ json_data_html | safe }}
+			</div>
+			
+			<!-- Display the JSON data -->
+			<div id="jsonDataTable">
+				<h2>{{ date_to_use }}三大法人夜盤期貨契約(交易口數多空淨額)</h2>
+				{{ json_data_html_night | safe }}
+			</div>
       </div>
 
 	  
