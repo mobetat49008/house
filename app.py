@@ -10,6 +10,7 @@ import time
 import threading
 
 from datetime import datetime, timedelta
+from OP_OI import get_today_date,calculate_week_of_month,extract_call_oi,extract_put_oi,plot_call_put_oi,calculate_wednesday_of_week,load_df,get_filename
 from io import StringIO
 from flask import Flask,render_template, jsonify,request
 from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
@@ -354,10 +355,21 @@ def main():
         
         # Read the night JSON file
         df_night = pd.read_json('future_institutional_investors_open_interest_night.json')
+        
+        today = get_today_date()
+        week_of_month = calculate_week_of_month(today)
+        wednesday_of_week = calculate_wednesday_of_week(today)
+        OP_WEEK = f"{today.year}{today.month:02d}W{week_of_month}"
+        filename,START_WED,TODAY_DATE,OP_WEEK = get_filename(today, week_of_month, wednesday_of_week)
+        df_op=load_df(filename)
+        call_t_df = extract_call_oi(df_op,OP_WEEK,'買權','一般')
+        put_t_df = extract_put_oi(df_op,OP_WEEK,'賣權','一般')
+        fig = plot_call_put_oi(call_t_df,put_t_df,OP_WEEK,START_WED,TODAY_DATE)
+        graph_html = fig.to_html(full_html=False)
 
         # Convert the DataFrame to HTML
         json_data_html_night = df_night.to_html(classes='w3-table w3-striped w3-white')
-    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html, date_to_use=date_to_use,json_data_html=json_data_html,json_data_html_night=json_data_html_night)
+    return render_template('main.html', positions=data, total_price=total_price, total_last_price=total_last_price, total_pnl=total_pnl,accountBalance=accountBalance,financial_data_html=financial_data_html, date_to_use=date_to_use,json_data_html=json_data_html,json_data_html_night=json_data_html_night,graph_html=graph_html)
 
 def read_counter():
     try:
@@ -374,25 +386,38 @@ def order_cb(stat, msg):
 
     str_rst = read_counter()
     print(f'my_order_callback-{str_rst}')
-    if str_rst == "False":
-        write_counter("True")
-        print(f"State:{stat}")
-        print(f"msg:{msg}")
-
+    print(f"State:{stat}")
+    print(f"msg:{msg}")
+    print(msg['order'])
+    if msg['order']['account']['account_type'] == "F":
+        #The order is coming from future
+        op_type = msg['operation']['op_type']
+        print("Operation Type:", op_type)
+        order_price = msg['order']['price']
+        print(order_price)
+        order_action = msg['order']['action']
+        order_quantity = msg['order']['quantity']
+    elif msg['order']['account']['account_type'] == "S":
+        #The order is coming from stock
+        op_type = msg['operation']['op_type']
+        print("Operation Type:", op_type)
+        order_price = msg['order']['price']
+        print(order_price)
+        order_action = msg['order']['action']
+        order_quantity = msg['order']['quantity']
+        order_code = msg['contract']['code']
         
-        print(msg['order'])
-        if msg['order']['account']['account_type'] == "F":
-            op_type = msg['operation']['op_type']
-            print("Operation Type:", op_type)
-            order_price = msg['order']['price']
-            print(order_price)
-            order_action = msg['order']['action']
-            '''
-            line_bot_api.push_message(
-            to='C4fa4a825dc69190708d673cf07f14d0a', # replace with the group ID
-            messages=[TextSendMessage(text="倉別:"+f"{op_type}"+"多空:"+f"{order_action}"+f"委託價格:"+f"{order_price}")])
-            '''
-        write_counter("False")
+    security_type = msg['contract']['security_type']
+    data = {
+    'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},Order Price:{order_price},Order Quantity:{order_quantity}'    # 設定要發送的訊息
+    }
+
+    data = requests.post(url, headers=headers, data=data)   # 使用 POST 方法
+    '''
+    line_bot_api.push_message(
+    to='C4fa4a825dc69190708d673cf07f14d0a', # replace with the group ID
+    messages=[TextSendMessage(text="倉別:"+f"{op_type}"+"多空:"+f"{order_action}"+f"委託價格:"+f"{order_price}")])
+    '''
 
 
 @app.route("/callback", methods=['POST'])
@@ -466,7 +491,6 @@ if __name__ == '__main__':
     if not result:
         print(f"The CA status is {result}")
 
-    print("WEIIII")
     api.set_order_callback(order_cb)
 
     '''

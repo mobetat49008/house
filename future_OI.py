@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from pprint import pprint
 import json
 from apscheduler.schedulers.blocking import BlockingScheduler
+from OP_OI import export_main
 
 def crawl(date,market):
     print('crawling', date.strftime('%Y/%m/%d'))
@@ -82,15 +83,19 @@ def main(market):
 
 if __name__ == '__main__':
 
-
+    export_main()
     # Create a scheduler instance
     scheduler = BlockingScheduler()
-
+    
     # Schedule the function to be called every day at 3:00 PM
-    scheduler.add_job(main, 'cron', hour=15, minute=0,args=['day'])
+    scheduler.add_job(export_main, 'cron', hour=15, minute=20,misfire_grace_time=180)
+    # Schedule the function to be called every day at 3:00 PM
+    scheduler.add_job(main, 'cron', hour=15, minute=30,misfire_grace_time=180,args=['day'])
 
-    # Schedule the same function to be called every day at 6:00 AM
-    scheduler.add_job(main, 'cron', hour=6, minute=0,args=['night'])
+    # Schedule the same function to be called every day at 7:00 AM
+    scheduler.add_job(main, 'cron', hour=7, minute=00,misfire_grace_time=180,args=['night'])
+    # Schedule the same function to be called every day at 7:00 AM
+    scheduler.add_job(main, 'cron', hour=7, minute=05,misfire_grace_time=180)
 
     # Start the scheduler
     scheduler.start()
