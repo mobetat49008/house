@@ -1,7 +1,7 @@
 import urllib3
 from bs4 import BeautifulSoup
 import os
-
+import calendar
 #資料處理套件
 import pandas as pd
 from datetime import datetime, date, timedelta
@@ -60,6 +60,7 @@ def get_option(commodity_id, queryStartDate, queryEndDate):
     return df
 
 def extract_call_oi(df,week,option,time):
+
     call_df = df.loc[(df['到期月份(週別)'] == week) & \
                 (df['買賣權'] == option) & \
                 (df['交易時段'] == time)]
@@ -114,7 +115,9 @@ def plot_call_put_oi(call_t_df,put_t_df,week,START_WED,today):
     
     START_WED = datetime.strptime(START_WED, '%Y/%m/%d')
     today = datetime.strptime(today, '%Y/%m/%d')
-    
+    # Format the datetime objects as strings in the desired format
+    START_WED = START_WED.strftime('%Y-%m-%d') +" 00:00:00"
+    today = today.strftime('%Y-%m-%d')+" 00:00:00"
     # 設定左右子圖
     fig = make_subplots(
         rows=1, 
@@ -183,11 +186,12 @@ def get_today_date():
     return today
 
 def calculate_week_of_month(today):
-    # 計算今天是這個月的第幾個星期三
-    if today.weekday() == 2:
-        week_of_month = (today.day - 1) // 7 + 2
-    else:
-        week_of_month = (today.day - 1) // 7 + 1
+    # Get the first day of the week and the day of the month
+    _, day_of_month = calendar.monthrange(today.year, today.month)
+    
+    # Calculate the week of the month
+    week_of_month = (day_of_month + 6) // 7
+    print(f"[OP_OI]The week is {week_of_month}")
     return week_of_month
 
 def calculate_wednesday_of_week(today):
@@ -197,7 +201,7 @@ def calculate_wednesday_of_week(today):
     return wednesday_of_week
 
 def get_filename(today, week_of_month, wednesday_of_week):
-    OP_WEEK = f"{today.year}{today.month:02d}W{week_of_month}"
+    OP_WEEK = f"{today.year}{today.month:02d}W{calculate_week_of_month(today)}"
     START_WED = f"{wednesday_of_week.year}/{wednesday_of_week.month:02d}/{wednesday_of_week.day:02d}"
     TODAY_DATE = f"{today.year}/{today.month:02d}/{today.day:02d}"
 
@@ -205,7 +209,7 @@ def get_filename(today, week_of_month, wednesday_of_week):
     TODAY_DATE_FORMATED = f"{today.year}-{today.month:02d}-{today.day:02d}"
 
     filename = fr'C:\Code\MachineLearning\future_OI\option_data_{OP_WEEK}_{START_WED_FORMATED}_{TODAY_DATE_FORMATED}.csv'
-
+    print(f"{filename}is loaded.")
     return filename,START_WED,TODAY_DATE,OP_WEEK
 
 def load_or_create_df(filename, START_WED, TODAY_DATE):

@@ -83,7 +83,6 @@ def main(market):
 
 if __name__ == '__main__':
 
-    export_main()
     # Create a scheduler instance
     scheduler = BlockingScheduler()
     
@@ -92,10 +91,10 @@ if __name__ == '__main__':
     # Schedule the function to be called every day at 3:00 PM
     scheduler.add_job(main, 'cron', hour=15, minute=30,misfire_grace_time=180,args=['day'])
 
-    # Schedule the same function to be called every day at 7:00 AM
-    scheduler.add_job(main, 'cron', hour=7, minute=00,misfire_grace_time=180,args=['night'])
-    # Schedule the same function to be called every day at 7:00 AM
-    scheduler.add_job(main, 'cron', hour=7, minute=05,misfire_grace_time=180)
+    # Schedule the same function to be called every day at 7:10 AM
+    scheduler.add_job(main, 'cron', hour=7, minute=10,misfire_grace_time=180,args=['night'])
+    # Schedule the same function to be called every day at 7:12 AM
+    scheduler.add_job(export_main, 'cron', hour=7, minute=12,misfire_grace_time=180)
 
     # Start the scheduler
     scheduler.start()

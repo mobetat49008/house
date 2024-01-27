@@ -356,6 +356,11 @@ def main():
         # Read the night JSON file
         df_night = pd.read_json('future_institutional_investors_open_interest_night.json')
         
+        ###### For OP################################
+        # Get the current date and time
+        now = datetime.now()
+        # Specify the cutoff time
+        cutoff = now.replace(hour=15, minute=30, second=0, microsecond=0)
         today = get_today_date()
         week_of_month = calculate_week_of_month(today)
         wednesday_of_week = calculate_wednesday_of_week(today)
@@ -364,8 +369,18 @@ def main():
         df_op=load_df(filename)
         call_t_df = extract_call_oi(df_op,OP_WEEK,'買權','一般')
         put_t_df = extract_put_oi(df_op,OP_WEEK,'賣權','一般')
+        print(TODAY_DATE)
+        # Compare the current time with the cutoff time
+        if now > cutoff:
+            # If the current time is after the cutoff time, set TODAY_DATE to today
+            TODAY_DATE = now.strftime('%Y/%m/%d')
+        else:
+            # If the current time is before the cutoff time, set TODAY_DATE to yesterday
+            yesterday = now - timedelta(days=1)
+            TODAY_DATE = yesterday.strftime('%Y/%m/%d')
         fig = plot_call_put_oi(call_t_df,put_t_df,OP_WEEK,START_WED,TODAY_DATE)
         graph_html = fig.to_html(full_html=False)
+        ##########################################
 
         # Convert the DataFrame to HTML
         json_data_html_night = df_night.to_html(classes='w3-table w3-striped w3-white')
@@ -388,7 +403,6 @@ def order_cb(stat, msg):
     print(f'my_order_callback-{str_rst}')
     print(f"State:{stat}")
     print(f"msg:{msg}")
-    print(msg['order'])
     if msg['order']['account']['account_type'] == "F":
         #The order is coming from future
         op_type = msg['operation']['op_type']
@@ -409,7 +423,7 @@ def order_cb(stat, msg):
         
     security_type = msg['contract']['security_type']
     data = {
-    'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},Order Price:{order_price},Order Quantity:{order_quantity}'    # 設定要發送的訊息
+    'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},股票代碼:{order_code},價格:{order_price},數量:{order_quantity}'    # 設定要發送的訊息
     }
 
     data = requests.post(url, headers=headers, data=data)   # 使用 POST 方法
