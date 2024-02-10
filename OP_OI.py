@@ -195,12 +195,22 @@ def calculate_week_of_month(today):
     return week_of_month
 
 def calculate_wednesday_of_week(today):
-    # 計算這個禮拜起始的禮拜三日期
-    start_of_week = today - timedelta(days=today.weekday())
-    wednesday_of_week = start_of_week + timedelta(days=2)
-    return wednesday_of_week
+    # Check if today is Monday (weekday() == 0) or Tuesday (weekday() == 1)
+    if today.weekday() == 0 or today.weekday() == 1:
+        # Subtract the number of days to get to the previous Wednesday
+        days_to_last_wednesday = today.weekday() + 5
+        return today - timedelta(days=days_to_last_wednesday)
+    else:
+        # Calculate this week's Wednesday
+        start_of_week = today - timedelta(days=today.weekday())
+        wednesday_of_week = start_of_week + timedelta(days=2)
+        return wednesday_of_week
 
 def get_filename(today, week_of_month, wednesday_of_week):
+    # If today is Saturday or Sunday, adjust it to be Friday
+    if today.weekday() in [5, 6]:  # 5 and 6 corresponds to Saturday and Sunday
+        today -= timedelta(days=(today.weekday() - 4))  # Adjust to Friday
+
     OP_WEEK = f"{today.year}{today.month:02d}W{calculate_week_of_month(today)}"
     START_WED = f"{wednesday_of_week.year}/{wednesday_of_week.month:02d}/{wednesday_of_week.day:02d}"
     TODAY_DATE = f"{today.year}/{today.month:02d}/{today.day:02d}"
@@ -209,8 +219,9 @@ def get_filename(today, week_of_month, wednesday_of_week):
     TODAY_DATE_FORMATED = f"{today.year}-{today.month:02d}-{today.day:02d}"
 
     filename = fr'C:\Code\MachineLearning\future_OI\option_data_{OP_WEEK}_{START_WED_FORMATED}_{TODAY_DATE_FORMATED}.csv'
-    print(f"{filename}is loaded.")
-    return filename,START_WED,TODAY_DATE,OP_WEEK
+    print(f"{filename} is loaded.")
+    return filename, START_WED, TODAY_DATE, OP_WEEK
+
 
 def load_or_create_df(filename, START_WED, TODAY_DATE):
 

@@ -10,6 +10,7 @@ import time
 import threading
 
 from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 from OP_OI import get_today_date,calculate_week_of_month,extract_call_oi,extract_put_oi,plot_call_put_oi,calculate_wednesday_of_week,load_df,get_filename
 from io import StringIO
 from flask import Flask,render_template, jsonify,request
@@ -214,8 +215,8 @@ def stock_data():
         top_stock['Stock Percentage'] = top_stock['Stock Percentage'].apply(lambda x: f'{x:.2f}%')
 
         data = df_positions.to_dict(orient='records')
-        balance = get_stock_balance(api)
-        accountBalance = balance.acc_balance
+        #balance = get_stock_balance(api)
+        accountBalance = read_balance_from_file()
 
         dividend_dict = get_dividend_data(excel_file_path)
         revenue_dict = get_revenue_data(excel_file_path)
@@ -312,8 +313,14 @@ def main():
             financial_data_html = formatted_df.to_html(classes='w3-table w3-striped w3-white')
         else:
             financial_data_html = "<p>Error fetching financial data: " + str(raw_data) + "</p>"
-        # Get the DataFrame from list_position
-        df_positions = list_position(api,"Stock")
+        try:
+            # Get the DataFrame from list_position
+            df_positions = list_position(api,"Stock")
+        except Exception as e:
+            print("[EXCEPT][MAIN]The api exception happened.")
+            login()
+            # Get the DataFrame from list_position
+            df_positions = list_position(api,"Stock")
 
         # Read the JSON file into a DataFrame
         df_json = pd.read_json('stock_number.json', orient='records', lines=True)
@@ -344,8 +351,8 @@ def main():
         # Convert DataFrame to list of dicts for Jinja2 rendering
         data = df_positions.to_dict(orient='records')
 
-        balance = get_stock_balance(api)
-        accountBalance = balance.acc_balance
+        #balance = get_stock_balance(api)
+        accountBalance = read_balance_from_file()
 
         # Read the day JSON file
         df = pd.read_json('future_institutional_investors_open_interest_day.json')
@@ -373,13 +380,40 @@ def main():
         # Compare the current time with the cutoff time
         if now > cutoff:
             # If the current time is after the cutoff time, set TODAY_DATE to today
-            TODAY_DATE = now.strftime('%Y/%m/%d')
+            current_date = now
         else:
             # If the current time is before the cutoff time, set TODAY_DATE to yesterday
-            yesterday = now - timedelta(days=1)
-            TODAY_DATE = yesterday.strftime('%Y/%m/%d')
-        fig = plot_call_put_oi(call_t_df,put_t_df,OP_WEEK,START_WED,TODAY_DATE)
-        graph_html = fig.to_html(full_html=False)
+            current_date = now - timedelta(days=1)
+
+        # Set the time to 00:00:00
+        current_date = current_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Initialize a counter
+        counter = 0
+
+        # Check if TODAY_DATE is a weekday and exists in the DataFrame
+        while True:
+            TODAY_DATE = current_date.strftime('%Y/%m/%d')
+            try:
+                # Try to plot the figure
+                fig = plot_call_put_oi(call_t_df,put_t_df,OP_WEEK,START_WED,TODAY_DATE)
+                graph_html = fig.to_html(full_html=False)
+                break
+            except KeyError:
+                # If the date does not exist in the DataFrame or is not a weekday, go to the previous day
+                current_date -= timedelta(days=1)
+                print(current_date)
+
+                # Increment the counter
+                counter += 1
+
+                # If the counter reaches 14, break the loop
+                if counter == 14:
+                    print("No valid date found within the last 14 days.")
+                    break
+        try:
+            graph_html = fig.to_html(full_html=False)
+        except:
+            graph_html = None
         ##########################################
 
         # Convert the DataFrame to HTML
@@ -475,7 +509,40 @@ def handle_message(event):
     if event.message.text == "Ben":
         data = requests.post(url, headers=headers, data=data)   # 使用 POST 方法
 
-if __name__ == '__main__':
+def read_balance_from_file():
+    # Path to the JSON file
+    file_path = 'accountinfo.json'
+    
+    # Try to open and read the JSON file
+    try:
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+            accountBalance = data.get('balance', 0)  # Default to 0 if 'balance' not found
+            return accountBalance
+    except FileNotFoundError:
+        print("accountinfo.json not found. Returning a default balance of 0.")
+        return 0
+    except json.JSONDecodeError:
+        print("Error decoding JSON. Returning a default balance of 0.")
+        return 0
+
+def job_function():
+    global api
+    balance = get_stock_balance(api)
+    accountBalance = balance.acc_balance
+    
+    # Prepare the data to write to the file
+    data_to_write = {'balance': accountBalance}
+    
+    # Path to the JSON file
+    file_path = 'accountinfo.json'
+    
+    # Writing the data to the JSON file
+    with open(file_path, 'w') as file:
+        json.dump(data_to_write, file, indent=4)
+
+def login():
+    global api
 
     # Reading the JSON file
     with open(configuration_file_path, 'r') as file:
@@ -505,8 +572,13 @@ if __name__ == '__main__':
     if not result:
         print(f"The CA status is {result}")
 
-    api.set_order_callback(order_cb)
+if __name__ == '__main__':
 
+    login()
+    api.set_order_callback(order_cb)
+    
+    # Create an instance of BackgroundScheduler
+    scheduler = BackgroundScheduler()
     '''
     ################This section is to download the stock code################
     result = requests.get("https://isin.twse.com.tw/isin/class_main.jsp?owncode=&stockname=&isincode=&market=4&issuetype=R&industry_code=&Page=1&chklike=Y")
@@ -518,5 +590,11 @@ if __name__ == '__main__':
     df_selected.to_json('stock_number.json', orient='records', lines=True)
     ##########################################################################
     '''
+    # Add a job to the scheduler
+    scheduler.add_job(job_function, 'interval', minutes=60,misfire_grace_time=180)
+
+    # Start the scheduler
+    scheduler.start()
+
     # Run the application on all network interfaces, not just the loopback interface
     app.run(host='0.0.0.0', port=5000,debug=True)

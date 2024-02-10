@@ -96,5 +96,8 @@ if __name__ == '__main__':
     # Schedule the same function to be called every day at 7:12 AM
     scheduler.add_job(export_main, 'cron', hour=7, minute=12,misfire_grace_time=180)
 
+    main("day")
+    export_main()
+
     # Start the scheduler
     scheduler.start()
