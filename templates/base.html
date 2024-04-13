@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}W3.CSS Template{% endblock %}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        html,body,h1,h2,h3,h4,h5 {font-family: "Raleway", sans-serif}
+        .positive { color: green; }
+        .negative { color: red; }
+        .w3-table tr:hover {
+            background-color: #f5f5f5;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+        .summary-row {
+            white-space: nowrap;
+            overflow-x: auto;
+        }
+        .selected {
+            color: black;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .unselected {
+            color: grey;
+            cursor: pointer;
+        }
+        #optionsContainer {
+            display: flex;
+            align-items: center;
+        }
+        #balanceDisplay {
+            margin-top: 10px;
+        }
+        #futuresButton {
+            background: none;
+            border: none;
+            padding: 0;
+            font: inherit;
+            color: inherit;
+        }
+        .flex-container {
+            display: flex;
+            align-items: stretch;
+        }
+        .table-flex-container {
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        .summary-row {
+            flex-basis: 10%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 10px;
+        }
+        .content-container {
+            display: flex;
+            align-items: start;
+        }
+        .chart-container {
+            flex-basis: 45%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 5px;
+        }
+        .chart-canvas {
+            height: auto;
+        }
+        #financialDataContainer {
+            flex: 1;
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            position: relative;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .table-container {
+            flex: 0 0 auto;
+            min-width: 100%;
+        }
+        #dataTable, #jsonDataTable {
+            width: 100%;
+            margin-top: 20px;
+            table-layout: auto;
+        }
+        @media screen and (max-width: 768px) {
+            .flex-container, #financialDataContainer, .table-container {
+                flex-direction: column;
+                width: auto;
+                flex: none;
+            }
+        }
+        .sidebar-hidden {
+            display: none !important;
+        }
+    </style>
+    {% block additional_styles %}{% endblock %}
+</head>
+<body class="w3-light-grey">
+
+    <div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
+        <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey" onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
+        <button class="w3-bar-item w3-button w3-black" onclick="hideSidebar()">&#9776;</button>
+        <span class="w3-bar-item w3-right">Logo</span>
+    </div>
+
+    <nav class="w3-sidebar w3-collapse w3-black w3-animate-left" style="z-index:3;width:300px;" id="mySidebar"><br>
+        <div class="w3-container w3-row">
+            <div class="w3-col s4">
+                <img src="/w3images/avatar2.png" class="w3-circle w3-margin-right" style="width:46px">
+            </div>
+            <div class="w3-col s8 w3-bar">
+                <span>Welcome, <strong>Mike</strong></span><br>
+                <a href="#" class="w3-bar-item w3-button"><i class="fa fa-envelope"></i></a>
+                <a href="#" class="w3-bar-item w3-button"><i the "fa fa-user"></i></a>
+                <a href="#" class="w3-bar-item w3-button"><i class="fa fa-cog"></i></a>
+            </div>
+        </div>
+        <hr>
+        <div class="w3-container">
+            <h5>Dashboard</h5>
+        </div>
+        <div class="w3-bar-block">
+            <a href="#" class="w3-bar-item w3-button w3-padding-16 w3-hide-large w3-dark-grey w3-hover-black" onclick="w3_close()" title="close menu"><i class="fa fa-remove fa-fw"></i>  Close Menu</a>
+            <a href="/" class="w3-bar-item w3-button w3-padding w3-blue"><i class="fa fa-users fa-fw"></i>  Overview</a>
+            <a href="/watchlist" class="w3-bar-item w3-button w3-padding w3-blue"><i the "fa fa-users fa-fw"></i>  Watch List</a>
+        </div>
+    </nav>
+
+    <div class="w3-overlay w3-hide-large w3-animate-opacity" onclick="w3_close()" style="cursor:pointer" title="close side menu" id="myOverlay"></div>
+
+    <div class="w3-main" style="margin-left:300px;margin-top:43px;">
+        {% block content %}
+        <!-- Dynamic content goes here -->
+        {% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="w3-container w3-padding-16 w3-light-grey">
+        <h4>FOOTER</h4>
+        <p>Powered by <a href="https://www.w3schools.com/w3css/default.asp" target="_blank">w3.css</a></p>
+    </footer>
+
+    <!-- Scripts necessary for functionality -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+$(document).ready(function(){
+    let positions = []; // Global variable to store position data
+    let currentType = 'stock'; // Default type
+    let sortingState = {
+        column: null,
+        order: 'ascending'
+    };
+
+    // Fetch stock data on page load
+    fetchStockData();
+    $('#stockOption').click(function(){
+        currentType = 'stock';
+        fetchStockData();
+        highlightSelected('stockOption');
+    });
+
+    $('#futuresButton').click(function(){
+        currentType = 'futures';
+        fetchFuturesData();
+        highlightSelected('futuresButton');
+    });
+
+    function fetchStockData() {
+        $.ajax({
+            url: '/stock_data',
+            type: 'get',
+            success: function(response){
+                positions = response.positions;
+                updateTable(positions, 'stock', response);
+				plotCharts(response.top_profit_data, response.top_stock_data); // Call the plotting function here
+            },
+            error: function(xhr, textStatus, errorThrown) {
+                console.error("Error in stock data request. Status:", xhr.status, "Status Text:", textStatus, "Error Thrown:", errorThrown);
+            }
+        });
+    }
+
+    function fetchFuturesData() {
+        $.ajax({
+            url: '/futures_data',
+            type: 'get',
+            success: function(response){
+                positions = response.positions;
+                updateTable(positions, 'futures', response);
+            },
+            error: function(xhr){
+                console.error("Error in futures data request:", xhr);
+            }
+        });
+    }
+
+    function updateTable(positions, type, response) {
+        var table = $('#dataTable');
+        table.find('tr:gt(0)').remove();
+
+        positions.forEach(function(position, index) {
+            var pnlClass = position.pnl > 0 ? 'positive' : 'negative';
+			// Format 'Profit Percentage' and 'Stock Percentage'
+			var formattedProfitPercentage = parseFloat(position['Profit Percentage']).toFixed(2) + '%';
+			var formattedStockPercentage = parseFloat(position['Stock Percentage']).toFixed(2) + '%';
+            var row = '<tr>' +
+                '<td>' + (index + 1) + '</td>' +
+                '<td>' + position.code + '</td>' +
+                '<td>' + position['Chinese Name'] + '</td>' +
+                '<td>' + position.direction + '</td>' +
+                '<td>' + position.quantity + '</td>' +
+                '<td>' + position.price + '</td>' +
+                '<td>' + position.last_price + '</td>' +
+                '<td>' + formattedProfitPercentage + '</td>' +
+                '<td class="' + pnlClass + '">' + position.pnl + '</td>' +
+                '<td>' + (formattedStockPercentage || 'N/A') + '</td>' +
+				'<td>' + position['2023dividend'] + '</td>' +
+				'<td>' + position['Dividend Yield'] + '</td>'+
+				'<td class="' + (parseFloat(position['2023MoM']) >= 0 ? 'positive' : 'negative') + '">' + position['2023MoM'] + '</td>' +
+				'<td class="' + (parseFloat(position['2023YoY']) >= 0 ? 'positive' : 'negative') + '">' + position['2023YoY'] + '</td>' +
+                '</tr>';
+            table.append(row);
+        });
+
+        // Show or hide stock-specific information
+        if (type === 'stock') {
+            $('#stockOnlyInfo').show();
+        } else if (type === 'futures') {
+            $('#stockOnlyInfo').hide();
+        }
+
+        // Update summary information
+        $('#totalPrice').text(response.total_price || 'N/A');
+        $('#totalLastPrice').text(response.total_last_price || 'N/A');
+        $('#totalPnL').text(response.total_pnl || 'N/A');
+        var pnlRatio = response.total_price !== 0 ? (response.total_pnl / response.total_price * 100).toFixed(2) + '%' : 'N/A';
+        $('#pnlRatio').text(pnlRatio);
+        $('#accountBalance').text(response.accountBalance || 'N/A');
+    }
+
+    function highlightSelected(selectedId) {
+        $('#stockOption').toggleClass('selected unselected', selectedId == 'stockOption');
+        $('#futuresButton').toggleClass('selected unselected', selectedId == 'futuresButton');
+    }
+
+    function sortPositions(column) {
+        if (sortingState.column === column) {
+            sortingState.order = sortingState.order === 'ascending' ? 'descending' : 'ascending';
+        } else {
+            sortingState.column = column;
+            sortingState.order = 'ascending';
+        }
+
+        positions.sort((a, b) => {
+            let valA = a[column];
+            let valB = b[column];
+            if (!isNaN(parseFloat(valA)) && !isNaN(parseFloat(valB))) {
+                valA = parseFloat(valA);
+                valB = parseFloat(valB);
+            }
+            if (valA < valB) {
+                return sortingState.order === 'ascending' ? -1 : 1;
+            }
+            if (valA > valB) {
+                return sortingState.order === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        updateTable(positions, currentType, { total_price: $('#totalPrice').text(), total_last_price: $('#totalLastPrice').text(), total_pnl: $('#totalPnL').text(), accountBalance: $('#accountBalance').text() });
+    }
+
+    function plotCharts(profitData, stockData, pnlData) { 
+        // Assuming you have two canvas elements in your HTML with the IDs 'profitChart' and 'stockChart'
+
+        new Chart(document.getElementById('profitChart'), {
+            type: 'bar',
+            data: {
+                labels: profitData.map(item => item['Chinese Name']),
+                datasets: [{
+                    label: 'PnL(Profit and Lost)',
+                    data: profitData.map(item => parseFloat(item['pnl'])),
+                    backgroundColor: 'blue'
+                }]
+            }
+        });
+
+		var stockChart = new Chart(document.getElementById('stockChart'), {
+			type: 'bar',
+			data: {
+				labels: stockData.map(item => item['Chinese Name']),
+				datasets: [{
+					label: 'Stock %',
+					data: stockData.map(item => parseFloat(item['Stock Percentage'])),
+					backgroundColor: 'green',
+					// Assuming you have a PnL value for each item in the same order
+					pnlData: pnlData // This should be an array of PnL values
+				}]
+			},
+			options: {
+				tooltips: {
+					callbacks: {
+						label: function(tooltipItem, data) {
+							var label = data.datasets[tooltipItem.datasetIndex].label || '';
+							var value = tooltipItem.yLabel;
+							var pnlValue = data.datasets[tooltipItem.datasetIndex].pnlData[tooltipItem.index];
+							return label + ': ' + value + '%, PnL: ' + pnlValue;
+						}
+					}
+				},
+				// ... other chart options ...
+			}
+		});
+    }
+
+function adjustSquare() {
+    var container = document.getElementById('financialDataContainer');
+    var width = container.offsetWidth;
+    container.style.height = width + 'px'; // Set height equal to current width
+}
+
+window.onload = adjustSquare;
+window.onresize = adjustSquare; // Adjust size on window resize
+
+    // Attach click handlers to headers for sorting
+    $('#header-id').click(() => sortPositions('id')); // Make sure 'id' is a property in your positions objects
+    $('#header-code').click(() => sortPositions('code'));
+    $('#header-name').click(() => sortPositions('Chinese Name')); // Assuming the property is 'Chinese Name'
+    $('#header-direction').click(() => sortPositions('direction')); // Replace 'direction' with the actual property name
+    $('#header-quantity').click(() => sortPositions('quantity')); // Replace 'quantity' with the actual property name
+    $('#header-price').click(() => sortPositions('price')); // Replace 'price' with the actual property name
+    $('#header-last-price').click(() => sortPositions('last_price')); // Replace 'last_price' with the actual property name
+    $('#header-profit-ratio').click(() => sortPositions('Profit Percentage')); // Assuming the property is 'Profit Percentage'
+    $('#header-pnl').click(() => sortPositions('pnl')); // Replace 'pnl' with the actual property name
+    $('#header-stock-percentage').click(() => sortPositions('Stock Percentage')); // Assuming the property is 'Stock Percentage'
+});
+</script>
+</body>
+</html>

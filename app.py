@@ -8,6 +8,7 @@ import os
 import datetime
 import time
 import threading
+import redis
 
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -15,6 +16,9 @@ from OP_OI import get_today_date,calculate_week_of_month,extract_call_oi,extract
 from io import StringIO
 from flask import Flask,render_template, jsonify,request
 from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
+from collections import defaultdict, deque
+from shioaji import TickFOPv1, Exchange
+
 from linebot import (
     LineBotApi, WebhookHandler
 )
@@ -41,6 +45,9 @@ token = 'JGq9Hk4A6wIECngAAkSZj7KhAYqiu0ChaAbDYwwvdFv'
 headers = {
     'Authorization': 'Bearer ' + token    # 設定權杖
 }
+
+# redis setting
+r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 def get_appropriate_date():
     """Determines the correct date based on the current time."""
@@ -301,6 +308,7 @@ def main():
     global api
     data = []
     date_to_use = get_appropriate_date()
+
     if api:
         # Fetch and process the new data
         url = "http://www.twse.com.tw/fund/BFI82U?response=html&dayDate={0}"
@@ -445,6 +453,10 @@ def order_cb(stat, msg):
         print(order_price)
         order_action = msg['order']['action']
         order_quantity = msg['order']['quantity']
+        security_type = msg['contract']['security_type']
+        data = {
+        'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},價格:{order_price},數量:{order_quantity}'    # 設定要發送的訊息
+        }
     elif msg['order']['account']['account_type'] == "S":
         #The order is coming from stock
         op_type = msg['operation']['op_type']
@@ -454,11 +466,14 @@ def order_cb(stat, msg):
         order_action = msg['order']['action']
         order_quantity = msg['order']['quantity']
         order_code = msg['contract']['code']
+        security_type = msg['contract']['security_type']
+        data = {
+        'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},股票代碼:{order_code},價格:{order_price},數量:{order_quantity}'    # 設定要發送的訊息
+        }
+
         
-    security_type = msg['contract']['security_type']
-    data = {
-    'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},股票代碼:{order_code},價格:{order_price},數量:{order_quantity}'    # 設定要發送的訊息
-    }
+    
+
 
     data = requests.post(url, headers=headers, data=data)   # 使用 POST 方法
     '''
@@ -528,18 +543,21 @@ def read_balance_from_file():
 
 def job_function():
     global api
-    balance = get_stock_balance(api)
-    accountBalance = balance.acc_balance
-    
-    # Prepare the data to write to the file
-    data_to_write = {'balance': accountBalance}
-    
-    # Path to the JSON file
-    file_path = 'accountinfo.json'
-    
-    # Writing the data to the JSON file
-    with open(file_path, 'w') as file:
-        json.dump(data_to_write, file, indent=4)
+    try:
+        balance = get_stock_balance(api)
+        accountBalance = balance.acc_balance
+        
+        # Prepare the data to write to the file
+        data_to_write = {'balance': accountBalance}
+        
+        # Path to the JSON file
+        file_path = 'accountinfo.json'
+        
+        # Writing the data to the JSON file
+        with open(file_path, 'w') as file:
+            json.dump(data_to_write, file, indent=4)
+    except Exception as e:
+        print(f"[get_stock_balance]The exception happened.Reason:{e}")
 
 def login():
     global api
@@ -572,11 +590,28 @@ def login():
     if not result:
         print(f"The CA status is {result}")
 
+def quote_callback(self, exchange:Exchange, tick:TickFOPv1):
+    # push them to redis stream
+    channel = 'Q:' + tick.code # ='Q:TXFG1' in this example 
+    self.xadd(channel, {'tick':json.dumps(tick.to_dict(raw=True))})
+
+@app.route('/watchlist')
+def watchlist():
+    # Assuming your HTML file is named 'watchlist.html' and is stored in the 'templates' folder
+    return render_template('watchlist.html')
+
 if __name__ == '__main__':
 
     login()
+    #api.set_context(r)
+    # In order to use context, set bind=True
+    #api.quote.set_on_tick_fop_v1_callback(quote_callback, bind=True)
     api.set_order_callback(order_cb)
-    
+    #api.quote.subscribe(
+    #api.Contracts.Futures.TXF['TXF202403'], #期貨Contract
+    #quote_type = sj.constant.QuoteType.Tick, #報價類型為Tick
+    #version = sj.constant.QuoteVersion.v1, #回傳資訊版本為v1
+    #)
     # Create an instance of BackgroundScheduler
     scheduler = BackgroundScheduler()
     '''

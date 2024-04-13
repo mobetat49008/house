@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Watch List{% endblock %}
+
+{% block content %}
+<div class="w3-container">
+    <h2>Watch List</h2>
+    <table class="w3-table-all w3-hoverable">
+        <thead>
+          <tr class="w3-light-grey">
+            <th>Stock Symbol</th>
+            <th>Company Name</th>
+            <th>Price</th>
+            <th>Change</th>
+            <th>% Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>AAPL</td>
+            <td>Apple Inc.</td>
+            <td>$150.10</td>
+            <td>+0.50</td>
+            <td>0.33%</td>
+          </tr>
+          <!-- More rows can be dynamically generated here -->
+        </tbody>
+    </table>
+</div>
+{% endblock %}
