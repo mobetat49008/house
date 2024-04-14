@@ -32,6 +32,11 @@
         <td>+0.50</td>
         <td>0.33%</td>
       </tr>
+	  {% for symbol in symbols %}
+      <tr>
+        <td>{{ symbol }}</td>
+      </tr>
+      {% endfor %}
       <!-- More rows can be dynamically generated here -->
     </tbody>
 </table>

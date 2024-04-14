@@ -595,19 +595,60 @@ def quote_callback(self, exchange:Exchange, tick:TickFOPv1):
     channel = 'Q:' + tick.code # ='Q:TXFG1' in this example 
     self.xadd(channel, {'tick':json.dumps(tick.to_dict(raw=True))})
 
+def read_data(filename):
+    """Reads a list of strings from a file."""
+    if os.path.exists(filename):
+        with open(filename, 'r') as file:
+            data = file.read().splitlines()
+        return data
+    else:
+        return []
+
+def write_data(filename, data):
+    """Writes a list of strings to a file, one per line."""
+    with open(filename, 'w') as file:
+        for item in data:
+            file.write(f"{item}\n")
+
+def add_item(data, item):
+    """Adds an item to the list."""
+    data.append(item)
+
+def delete_item(data, item):
+    """Deletes an item from the list if it exists."""
+    if item in data:
+        data.remove(item)
+
+def reorder_list(data, order):
+    """Reorders the data list to match the specified order."""
+    item_to_index = {item: i for i, item in enumerate(order)}
+    data.sort(key=lambda x: item_to_index.get(x, len(data)))
+
 @app.route('/add_stock', methods=['POST'])
 def add_stock():
     stock_symbol = request.form['stock_symbol']
+    filename = fr'C:\Code\MachineLearning\future_OI\stock.txt'
+    data = read_data(filename)
+
     # Process the stock symbol (e.g., save to database, etc.)
     print(stock_symbol)  # Just an example of what you might do
-
+    print("Wei")
+    add_item(data, stock_symbol)  # Adding an item
     # Redirect back to the watch list page or wherever appropriate
+    write_data(filename, data)
     return redirect(url_for('watchlist'))
 
 @app.route('/watchlist')
 def watchlist():
     # Assuming your HTML file is named 'watchlist.html' and is stored in the 'templates' folder
-    return render_template('watchlist.html')
+    print("Wei1")
+    filename = fr'C:\Code\MachineLearning\future_OI\stock.txt'
+
+    if request.method == 'GET':
+        # Read data from file and return it
+        symbols = read_data(filename)
+
+    return render_template('watchlist.html',symbols=symbols)
 
 if __name__ == '__main__':
 
