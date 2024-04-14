@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from OP_OI import get_today_date,calculate_week_of_month,extract_call_oi,extract_put_oi,plot_call_put_oi,calculate_wednesday_of_week,load_df,get_filename
 from io import StringIO
-from flask import Flask,render_template, jsonify,request
+from flask import Flask,render_template, jsonify,request,redirect, url_for
 from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
 from collections import defaultdict, deque
 from shioaji import TickFOPv1, Exchange
@@ -594,6 +594,15 @@ def quote_callback(self, exchange:Exchange, tick:TickFOPv1):
     # push them to redis stream
     channel = 'Q:' + tick.code # ='Q:TXFG1' in this example 
     self.xadd(channel, {'tick':json.dumps(tick.to_dict(raw=True))})
+
+@app.route('/add_stock', methods=['POST'])
+def add_stock():
+    stock_symbol = request.form['stock_symbol']
+    # Process the stock symbol (e.g., save to database, etc.)
+    print(stock_symbol)  # Just an example of what you might do
+
+    # Redirect back to the watch list page or wherever appropriate
+    return redirect(url_for('watchlist'))
 
 @app.route('/watchlist')
 def watchlist():
