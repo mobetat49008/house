@@ -17,6 +17,8 @@
 <table class="w3-table-all w3-hoverable">
     <thead>
       <tr class="w3-light-grey">
+		<th>Sort</th>
+		<th>Remove</th>
         <th>Stock Symbol</th>
         <th>Company Name</th>
         <th>Price</th>
@@ -34,10 +36,23 @@
       </tr>
 	  {% for symbol in symbols %}
       <tr>
+		<td>
+          <form action="/remove_stock" method="post" style="display: inline;">
+            <input type="hidden" name="stock_symbol" value="{{ symbol }}">
+            <button type="submit" class="w3-button w3-red">Remove</button>
+          </form>
+          <button onclick="sortSymbol('{{ symbol }}')" class="w3-button w3-teal">Sort</button>
+        </td>
         <td>{{ symbol }}</td>
       </tr>
       {% endfor %}
       <!-- More rows can be dynamically generated here -->
     </tbody>
 </table>
+<script>
+function sortSymbol(symbol) {
+    // Implement sorting functionality or redirect with JS
+    console.log('Sorting for:', symbol); // Placeholder
+}
+</script>
 {% endblock %}

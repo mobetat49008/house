@@ -624,6 +624,15 @@ def reorder_list(data, order):
     item_to_index = {item: i for i, item in enumerate(order)}
     data.sort(key=lambda x: item_to_index.get(x, len(data)))
 
+@app.route('/remove_stock', methods=['POST'])
+def remove_stock():
+    symbol = request.form['stock_symbol']
+    data = read_data(filename)
+    if symbol in data:
+        data.remove(symbol)
+        write_data(filename, data)
+    redirect(url_for('watchlist'))
+
 @app.route('/add_stock', methods=['POST'])
 def add_stock():
     stock_symbol = request.form['stock_symbol']
