@@ -18,6 +18,8 @@ from flask import Flask,render_template, jsonify,request,redirect, url_for
 from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
 from collections import defaultdict, deque
 from shioaji import TickFOPv1, Exchange
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 
 from linebot import (
     LineBotApi, WebhookHandler
@@ -32,6 +34,8 @@ from linebot.models import (
 # Path to the JSON file
 configuration_file_path = r'C:\Code\Configuration\Sinopac_future.json'  # Replace with the actual path of your JSON file
 app = Flask(__name__)
+CORS(app)  # You might need to specify parameters based on your security needs
+socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins="*")
 
 # Global variable for the API
 api = None
@@ -45,6 +49,14 @@ token = 'JGq9Hk4A6wIECngAAkSZj7KhAYqiu0ChaAbDYwwvdFv'
 headers = {
     'Authorization': 'Bearer ' + token    # 設定權杖
 }
+
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
 
 # redis setting
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
@@ -590,34 +602,40 @@ def login():
     if not result:
         print(f"The CA status is {result}")
 
+# Initialize an empty dictionary to store stock data
+stock_data = {}
+
 def quote_callback(self, exchange:Exchange, tick:TickFOPv1):
     # push them to redis stream
     channel = 'Q:' + tick.code # ='Q:TXFG1' in this example 
     self.xadd(channel, {'tick':json.dumps(tick.to_dict(raw=True))})
-
+    
+filename = fr'C:\Code\MachineLearning\future_OI\stock.json'  # Update this path as needed
 def read_data(filename):
-    """Reads a list of strings from a file."""
+    """Reads a JSON file and returns a dictionary."""
+    print(filename)
     if os.path.exists(filename):
-        with open(filename, 'r') as file:
-            data = file.read().splitlines()
+        with open(filename, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+        print("WEIIII---")
+        print(data)
         return data
     else:
-        return []
+        return {}
 
 def write_data(filename, data):
-    """Writes a list of strings to a file, one per line."""
-    with open(filename, 'w') as file:
-        for item in data:
-            file.write(f"{item}\n")
+    """Writes a dictionary to a JSON file."""
+    with open(filename, 'w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
 
-def add_item(data, item):
-    """Adds an item to the list."""
-    data.append(item)
+def add_item(data, symbol, description):
+    """Adds an item to the dictionary."""
+    data[symbol] = description
 
-def delete_item(data, item):
-    """Deletes an item from the list if it exists."""
-    if item in data:
-        data.remove(item)
+def delete_item(data, symbol):
+    """Deletes an item from the dictionary if it exists."""
+    if symbol in data:
+        del data[symbol]
 
 def reorder_list(data, order):
     """Reorders the data list to match the specified order."""
@@ -628,36 +646,82 @@ def reorder_list(data, order):
 def remove_stock():
     symbol = request.form['stock_symbol']
     data = read_data(filename)
-    if symbol in data:
-        data.remove(symbol)
-        write_data(filename, data)
-    redirect(url_for('watchlist'))
+    delete_item(data, symbol)
+    write_data(filename, data)
+    return redirect(url_for('watchlist'))
 
 @app.route('/add_stock', methods=['POST'])
 def add_stock():
-    stock_symbol = request.form['stock_symbol']
-    filename = fr'C:\Code\MachineLearning\future_OI\stock.txt'
+    symbol = request.form['stock_symbol']
+    print("WEIii----")
+    print(symbol)
+    description = get_description_from_csv(symbol)  # Assuming a function that fetches this
+    print("Description for", symbol, "is", description)
     data = read_data(filename)
-
-    # Process the stock symbol (e.g., save to database, etc.)
-    print(stock_symbol)  # Just an example of what you might do
-    print("Wei")
-    add_item(data, stock_symbol)  # Adding an item
-    # Redirect back to the watch list page or wherever appropriate
+    add_item(data, symbol, description)
     write_data(filename, data)
     return redirect(url_for('watchlist'))
+
+@app.route('/update_watchlist_order', methods=['POST'])
+def update_order():
+    new_order = request.json.get('order')
+    print("New order received:", new_order)
+    # Implement logic to update the order in your database or session
+    return jsonify({'status': 'success'})
+    
+def simplify_symbol(symbol):
+    # This function assumes future symbols start with "TXF" and followed by year and month
+    if symbol.startswith("TXF"):
+        return f"TXFD{symbol[-1:]}"  # Take only the last two digits of the year
+    return symbol
 
 @app.route('/watchlist')
 def watchlist():
     # Assuming your HTML file is named 'watchlist.html' and is stored in the 'templates' folder
     print("Wei1")
-    filename = fr'C:\Code\MachineLearning\future_OI\stock.txt'
-
+    #filename = fr'C:\Code\MachineLearning\future_OI\stock.txt'
+    global stock_data  # Use the global stock_data dictionary
     if request.method == 'GET':
         # Read data from file and return it
-        symbols = read_data(filename)
+        stock_data = read_data(filename)
+        
+    # Simplify symbols
+    simplified_data = {simplify_symbol(k): v for k, v in stock_data.items()}
+    print(simplified_data)
 
-    return render_template('watchlist.html',symbols=symbols)
+    return render_template('watchlist.html',symbols=simplified_data)
+    
+def get_description_from_csv(symbol):
+    import pandas as pd
+    try:
+        df = pd.read_csv('stock_list.csv', dtype={'code': str})  # Assuming 'code' is the column for symbols
+        mapping = df.set_index('code')['name'].to_dict()
+
+        return mapping.get(str(symbol), 'Unknown Description')  # Convert symbol to string just in case
+    except Exception as e:
+        print("An error occurred:", e)
+        return 'Unknown Description'
+
+def register_market_callbacks():
+    # Suppose you read the symbols from a JSON file or database
+    symbols = read_data(filename).keys()  # Assuming read_data returns a dictionary
+    for symbol in symbols:
+        if 'TXF' in symbol:
+            # It's a future contract
+            year_month = symbol[-6:]  # Assumes the format 'TXFYYYYMM', adjust if necessary
+            contract_symbol = f"TXF{year_month}"
+            api.quote.subscribe(
+                api.Contracts.Futures.TXF[contract_symbol],
+                quote_type=sj.constant.QuoteType.Tick, 
+                version=sj.constant.QuoteVersion.v1
+            )
+        else:
+            # It's a stock
+            api.quote.subscribe(
+                api.Contracts.Stocks[symbol],
+                quote_type=sj.constant.QuoteType.Tick,
+                version=sj.constant.QuoteVersion.v1
+            )
 
 if __name__ == '__main__':
 
@@ -672,6 +736,38 @@ if __name__ == '__main__':
     #version = sj.constant.QuoteVersion.v1, #回傳資訊版本為v1
     #)
     # Create an instance of BackgroundScheduler
+    @api.on_tick_stk_v1()
+    def quote_callback(exchange, tick):
+        tick_data = {
+            #'time': tick.datetime.strftime('%Y/%m/%d %H:%M:%S'),
+            #'open': str(tick.open),
+            #'high': str(tick.high),
+            #'low': str(tick.low),
+            'close': str(tick.close),
+            #'volume': tick.volume,
+            'change': str(tick.price_chg),
+            'change_pct': f"{tick.pct_chg}%"
+        }
+        # Emit the tick data to all connected WebSocket clients
+        socketio.emit('stock_data', {tick.code: tick_data})
+        print(tick_data)  # Optionally, print the tick data for debugging
+
+    # Modified quote_callback, now uses msg_queue directly instead of self
+    @api.on_tick_fop_v1()
+    def quote_callback(exchange, tick):
+        tick_data = {
+            #'time': tick.datetime.strftime('%Y/%m/%d %H:%M:%S'),
+            #'open': str(tick.open),
+            #'high': str(tick.high),
+            #'low': str(tick.low),
+            'close': str(tick.close),
+            #'volume': tick.volume,
+            'change': str(tick.price_chg),
+            'change_pct': f"{tick.pct_chg}%"
+        }
+        # Emit the tick data to all connected WebSocket clients
+        socketio.emit('future_data', {tick.code: tick_data})
+        #print(f"Time: {tick_datetime}, Code: {tick.code}, Open: {open_price}, Close: {close_price}, High: {high_price}, Low: {low_price}, Price_chg: {price_chg}")
     scheduler = BackgroundScheduler()
     '''
     ################This section is to download the stock code################
@@ -690,5 +786,8 @@ if __name__ == '__main__':
     # Start the scheduler
     scheduler.start()
 
-    # Run the application on all network interfaces, not just the loopback interface
-    app.run(host='0.0.0.0', port=5000,debug=True)
+    # Add this call right after api.login in the main block
+    register_market_callbacks()
+
+    # Run the Flask application with SocketIO on all network interfaces
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)

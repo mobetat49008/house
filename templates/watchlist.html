@@ -3,6 +3,8 @@
 {% block title %}Watch List{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 <div class="w3-container" style="display: flex; align-items: center;">
     <h2 style="margin-right: 20px;">Watch List</h2>
     
@@ -14,11 +16,11 @@
     </form>
 </div>
 
-<table class="w3-table-all w3-hoverable">
+<table class="w3-table-all w3-hoverable" id="sortableTable">
     <thead>
       <tr class="w3-light-grey">
-		<th>Sort</th>
-		<th>Remove</th>
+        <th style="width: 50px;">Sort</th>
+        <th style="width: 50px;">Remove</th>
         <th>Stock Symbol</th>
         <th>Company Name</th>
         <th>Price</th>
@@ -27,32 +29,110 @@
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td>AAPL</td>
-        <td>Apple Inc.</td>
-        <td>$150.10</td>
-        <td>+0.50</td>
-        <td>0.33%</td>
-      </tr>
-	  {% for symbol in symbols %}
-      <tr>
-		<td>
+      {% for symbol, description in symbols.items() %}
+      <tr draggable="true" id="stock-{{ symbol }}">
+        <td>
+          <i class="fa fa-bars" aria-hidden="true" style="cursor: grab;"></i> <!-- Sort icon -->
+        </td>
+        <td>
           <form action="/remove_stock" method="post" style="display: inline;">
             <input type="hidden" name="stock_symbol" value="{{ symbol }}">
-            <button type="submit" class="w3-button w3-red">Remove</button>
+            <button type="submit" class="w3-button" style="padding: 8px; border: none; background: none;">
+              <i class="fa fa-trash"></i>
+            </button>
           </form>
-          <button onclick="sortSymbol('{{ symbol }}')" class="w3-button w3-teal">Sort</button>
         </td>
         <td>{{ symbol }}</td>
+        <td>{{ description if description else "Futures" }}</td>
+        <td id="stock-{{ symbol }}-price">-</td>
+        <td id="stock-{{ symbol }}-change">-</td>
+        <td id="stock-{{ symbol }}-change_pct">-</td>
       </tr>
       {% endfor %}
-      <!-- More rows can be dynamically generated here -->
     </tbody>
 </table>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 <script>
-function sortSymbol(symbol) {
-    // Implement sorting functionality or redirect with JS
-    console.log('Sorting for:', symbol); // Placeholder
+document.addEventListener('DOMContentLoaded', (event) => {
+    let draggedElement = null;
+
+    document.querySelectorAll('#sortableTable tbody tr').forEach(row => {
+        row.addEventListener('dragstart', function (e) {
+            draggedElement = this;
+        });
+
+        row.addEventListener('dragover', function (e) {
+            e.preventDefault();  // Necessary to allow dropping
+        });
+
+        row.addEventListener('drop', function (e) {
+            if (this !== draggedElement) {
+                let allRows = Array.from(this.parentNode.children);
+                let draggedIndex = allRows.indexOf(draggedElement);
+                let droppedIndex = allRows.indexOf(this);
+
+                if (draggedIndex < droppedIndex) {
+                    this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedElement, this);
+                }
+
+                // Optionally send the updated order to the server
+                updateOrderOnServer();
+            }
+        });
+    });
+});
+
+function updateOrderOnServer() {
+    let symbols = Array.from(document.querySelectorAll('#sortableTable tbody tr')).map(row => row.cells[2].textContent.trim());
+    fetch('/update_watchlist_order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({order: symbols})
+    })
+    .then(response => response.json())
+    .then(data => console.log('Order updated:', data))
+    .catch((error) => console.error('Error:', error));
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    var socket = io();
+
+    socket.on('connect', function() {
+        console.log('Connected to server');
+    });
+
+    socket.on('future_data', function(data) {
+        console.log('Future data received:', data);
+        for (var symbol in data) {
+            updateStockData(symbol, data[symbol]);
+        }
+    });
+
+    socket.on('stock_data', function(data) {
+        console.log('Stock data received:', data);
+        for (var symbol in data) {
+            updateStockData(symbol, data[symbol]);
+        }
+    });
+
+    function updateStockData(symbol, tick) {
+        let row = document.getElementById(`stock-${symbol}`);
+        if (row) {
+            row.querySelector(`#stock-${symbol}-price`).innerText = tick.close;
+            row.querySelector(`#stock-${symbol}-change`).innerText = tick.change;
+            row.querySelector(`#stock-${symbol}-change_pct`).innerText = tick.change_pct;
+        } else {
+            console.log('Element not found for symbol:', symbol);
+        }
+    }
+	
+	
+});
 </script>
+
 {% endblock %}
