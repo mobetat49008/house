@@ -660,6 +660,22 @@ def add_stock():
     data = read_data(filename)
     add_item(data, symbol, description)
     write_data(filename, data)
+    if 'TXF' in symbol:
+        # It's a future contract
+        year_month = symbol[-6:]  # Assumes the format 'TXFYYYYMM', adjust if necessary
+        contract_symbol = f"TXF{year_month}"
+        api.quote.subscribe(
+            api.Contracts.Futures.TXF[contract_symbol],
+            quote_type=sj.constant.QuoteType.Tick, 
+            version=sj.constant.QuoteVersion.v1
+        )
+    else:
+        # It's a stock
+        api.quote.subscribe(
+            api.Contracts.Stocks[symbol],
+            quote_type=sj.constant.QuoteType.Tick,
+            version=sj.constant.QuoteVersion.v1
+        )
     return redirect(url_for('watchlist'))
 
 @app.route('/update_watchlist_order', methods=['POST'])
