@@ -86,17 +86,33 @@ document.addEventListener('DOMContentLoaded', (event) => {
 });
 
 function updateOrderOnServer() {
-    let symbols = Array.from(document.querySelectorAll('#sortableTable tbody tr')).map(row => row.cells[2].textContent.trim());
+    let symbols = Array.from(document.querySelectorAll('#sortableTable tbody tr')).reduce((map, row) => {
+        let symbol = row.cells[2].textContent.trim();
+        let value = row.cells[3].textContent.trim(); // assuming the value is in the 4th column
+        map.set(symbol, value);
+        console.log(`Added symbol: ${symbol}, value: ${value}`); // Debug log
+        return map;
+    }, new Map());
+    console.log('Symbols map:', Array.from(symbols)); // Debug log
     fetch('/update_watchlist_order', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({order: symbols})
+        body: JSON.stringify({order: Object.fromEntries(symbols)})
     })
-    .then(response => response.json())
-    .then(data => console.log('Order updated:', data))
-    .catch((error) => console.error('Error:', error));
+    .then(response => {
+        console.log('Server response:', response); // Debug log
+        return response.json();
+    })
+    .then(data => {
+        console.log('Order updated:', data);
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+    });
+	
+	console.log('Final order object:', Object.fromEntries(symbols));
 }
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -9,6 +9,7 @@ import datetime
 import time
 import threading
 import redis
+import re
 
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -637,35 +638,54 @@ def delete_item(data, symbol):
     if symbol in data:
         del data[symbol]
 
-def reorder_list(data, order):
-    """Reorders the data list to match the specified order."""
-    item_to_index = {item: i for i, item in enumerate(order)}
-    data.sort(key=lambda x: item_to_index.get(x, len(data)))
-
 @app.route('/remove_stock', methods=['POST'])
 def remove_stock():
     symbol = request.form['stock_symbol']
     data = read_data(filename)
-    delete_item(data, symbol)
+    reverse_symbol = reverse_translate_string(symbol)
+    delete_item(data, reverse_symbol)
     write_data(filename, data)
     return redirect(url_for('watchlist'))
+
+def translate_string(input_string):
+    # Extract the number from the string
+    number = int(input_string[-2:])
+
+    # Translate the number to its corresponding alphabet (1=A, 2=B, ..., 26=Z)
+    alphabet = chr(number + 64)  # ASCII value of 'A' is 65
+
+    # Return the original string with the number replaced by the alphabet and the number
+    return input_string[0:3] + alphabet + "4"
+    
+def reverse_translate_string(input_string):
+    # Extract the alphabet from the string
+    alphabet = input_string[3]
+
+    # Translate the alphabet back to its corresponding number (A=1, B=2, ..., Z=26)
+    number = ord(alphabet) - 64  # ASCII value of 'A' is 65
+
+    # Return the original string with the alphabet replaced by the number
+    return input_string[:3] + "2024" + str(number).zfill(2)
 
 @app.route('/add_stock', methods=['POST'])
 def add_stock():
     symbol = request.form['stock_symbol']
-    print("WEIii----")
     print(symbol)
     description = get_description_from_csv(symbol)  # Assuming a function that fetches this
-    print("Description for", symbol, "is", description)
+    print(f"[add_stock]Description for", symbol, "is", description)
     data = read_data(filename)
     add_item(data, symbol, description)
     write_data(filename, data)
     if 'TXF' in symbol:
         # It's a future contract
         year_month = symbol[-6:]  # Assumes the format 'TXFYYYYMM', adjust if necessary
+        print(year_month)
         contract_symbol = f"TXF{year_month}"
+        print(f"WEI-----contract_symbol:{contract_symbol}-----")
+        mapping_symbol = translate_string(contract_symbol)
+        print(f"Will subscribe:{mapping_symbol}")
         api.quote.subscribe(
-            api.Contracts.Futures.TXF[contract_symbol],
+            api.Contracts.Futures.TXF[mapping_symbol],
             quote_type=sj.constant.QuoteType.Tick, 
             version=sj.constant.QuoteVersion.v1
         )
@@ -680,15 +700,34 @@ def add_stock():
 
 @app.route('/update_watchlist_order', methods=['POST'])
 def update_order():
-    new_order = request.json.get('order')
-    print("New order received:", new_order)
+    raw_data = request.get_json()  # Get raw JSON data
+    print("Raw JSON received:", raw_data)
+    new_order = raw_data.get('order')
+    print("[update_order] New order received:", new_order)
+
+    # Create a new dictionary to store the modified order
+    modified_order = {}
+
+    # Check each key-value pair in the new_order dictionary
+    for key, value in new_order.items():
+        # If the key matches the pattern "TXF*4"
+        if re.match(r'^TXF[A-Za-z]4$', key):
+            # Call reverse_translate_string function and use the result as the new key
+            new_key = reverse_translate_string(key)
+            modified_order[new_key] = value
+        else:
+            modified_order[key] = value
+
     # Implement logic to update the order in your database or session
+    write_data(filename, modified_order)
     return jsonify({'status': 'success'})
+
     
 def simplify_symbol(symbol):
     # This function assumes future symbols start with "TXF" and followed by year and month
-    if symbol.startswith("TXF"):
-        return f"TXFD{symbol[-1:]}"  # Take only the last two digits of the year
+    if symbol.startswith("TXF"):# and re.match(r'^TXF6$', symbol)
+        string = translate_string(symbol)
+        return string  # TXFD4,TXFE4,TXFF4
     return symbol
 
 @app.route('/watchlist')
@@ -710,10 +749,11 @@ def watchlist():
 def get_description_from_csv(symbol):
     import pandas as pd
     try:
-        df = pd.read_csv('stock_list.csv', dtype={'code': str})  # Assuming 'code' is the column for symbols
-        mapping = df.set_index('code')['name'].to_dict()
+        if 'TXF' not in symbol:
+            df = pd.read_csv('stock_list.csv', dtype={'code': str})  # Assuming 'code' is the column for symbols
+            mapping = df.set_index('code')['name'].to_dict()
 
-        return mapping.get(str(symbol), 'Unknown Description')  # Convert symbol to string just in case
+            return mapping.get(str(symbol), 'Unknown Description')  # Convert symbol to string just in case
     except Exception as e:
         print("An error occurred:", e)
         return 'Unknown Description'
