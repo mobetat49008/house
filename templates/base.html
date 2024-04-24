@@ -111,6 +111,11 @@
         <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey" onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
         <button class="w3-bar-item w3-button w3-black" onclick="hideSidebar()">&#9776;</button>
         <span class="w3-bar-item w3-right">Logo</span>
+        {% if 'logged_in' in session and session['logged_in'] %}
+            <a href="/logout" class="w3-bar-item w3-button w3-right" style="height:46px;">{{ session['username'] }} (Logout)</a>
+        {% else %}
+            <a href="/login?next={{ request.path }}" class="w3-bar-item w3-button w3-right" style="height:46px;">Login</a>
+        {% endif %}
     </div>
 
     <nav class="w3-sidebar w3-collapse w3-black w3-animate-left" style="z-index:3;width:300px;" id="mySidebar"><br>

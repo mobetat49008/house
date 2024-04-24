@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from OP_OI import get_today_date,calculate_week_of_month,extract_call_oi,extract_put_oi,plot_call_put_oi,calculate_wednesday_of_week,load_df,get_filename
 from io import StringIO
-from flask import Flask,render_template, jsonify,request,redirect, url_for
+from flask import Flask,render_template, jsonify,request,redirect, url_for, session, flash
 from Sinopac_Futures import list_accounts,list_position,get_stock_balance,list_margin
 from collections import defaultdict, deque
 from shioaji import TickFOPv1, Exchange
@@ -35,6 +35,7 @@ from linebot.models import (
 # Path to the JSON file
 configuration_file_path = r'C:\Code\Configuration\Sinopac_future.json'  # Replace with the actual path of your JSON file
 app = Flask(__name__)
+app.secret_key = '123'
 CORS(app)  # You might need to specify parameters based on your security needs
 socketio = SocketIO(app, logger=True, engineio_logger=True, cors_allowed_origins="*")
 
@@ -778,6 +779,27 @@ def register_market_callbacks():
                 quote_type=sj.constant.QuoteType.Tick,
                 version=sj.constant.QuoteVersion.v1
             )
+
+@app.route('/login', methods=['GET', 'POST'])
+def logi_html():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username == '123' and password == '123':
+            session['logged_in'] = True
+            session['username'] = username  # Store username in session
+            next_page = request.args.get('next') or url_for('watchlist')
+            return redirect(next_page)
+        else:
+            flash('Invalid username or password!')
+            return redirect(url_for('login', next=request.args.get('next')))
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout_html():
+    session.pop('logged_in', None)
+    session.pop('username', None)  # Clear the username from session
+    return redirect(url_for('watchlist'))
 
 if __name__ == '__main__':
 
