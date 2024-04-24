@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         html,body,h1,h2,h3,h4,h5 {font-family: "Raleway", sans-serif}
         .positive { color: green; }
@@ -99,9 +100,33 @@
                 flex: none;
             }
         }
-        .sidebar-hidden {
-            display: none !important;
-        }
+	
+		.w3-sidebar {
+			width: 300px; /* Initial width */
+			transition: width 0.5s ease;
+		}
+
+		.w3-main, .w3-overlay {
+			transition: margin-left 0.5s ease;
+		}
+
+		#toggleSidebarButton {
+			position: fixed;
+			top: 55px;
+			left: 0;
+			z-index: 5;
+			cursor: pointer;
+			border: none; /* Remove border for a clean look */
+			background-color: #00796B; /* Teal color */
+			color: white;
+			border-radius: 50%;
+			padding: 10px 15px;
+		}
+
+		#toggleSidebarButton:hover {
+			background-color: #004D40; /* Darker shade for hover effect */
+		}
+		
     </style>
     {% block additional_styles %}{% endblock %}
 </head>
@@ -110,7 +135,7 @@
     <div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
         <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey" onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
         <button class="w3-bar-item w3-button w3-black" onclick="hideSidebar()">&#9776;</button>
-        <span class="w3-bar-item w3-right">Logo</span>
+		<span class="w3-bar-item w3-right"><i class="fa fa-cat"></i></span>
         {% if 'logged_in' in session and session['logged_in'] %}
             <a href="/logout" class="w3-bar-item w3-button w3-right" style="height:46px;">{{ session['username'] }} (Logout)</a>
         {% else %}
@@ -120,11 +145,8 @@
 
     <nav class="w3-sidebar w3-collapse w3-black w3-animate-left" style="z-index:3;width:300px;" id="mySidebar"><br>
         <div class="w3-container w3-row">
-            <div class="w3-col s4">
-                <img src="/w3images/avatar2.png" class="w3-circle w3-margin-right" style="width:46px">
-            </div>
             <div class="w3-col s8 w3-bar">
-                <span>Welcome, <strong>Mike</strong></span><br>
+                <span>Welcome, <strong>Ruby</strong></span><br>
                 <a href="#" class="w3-bar-item w3-button"><i class="fa fa-envelope"></i></a>
                 <a href="#" class="w3-bar-item w3-button"><i the "fa fa-user"></i></a>
                 <a href="#" class="w3-bar-item w3-button"><i class="fa fa-cog"></i></a>
@@ -143,23 +165,17 @@
 
     <div class="w3-overlay w3-hide-large w3-animate-opacity" onclick="w3_close()" style="cursor:pointer" title="close side menu" id="myOverlay"></div>
 
-    <div class="w3-main" style="margin-left:300px;margin-top:43px;">
+    <div class="w3-main" style="margin-left:300px;margin-top:43px;" id="main">
         {% block content %}
         <!-- Dynamic content goes here -->
         {% endblock %}
     </div>
 
-    <!-- Footer -->
-    <footer class="w3-container w3-padding-16 w3-light-grey">
-        <h4>FOOTER</h4>
-        <p>Powered by <a href="https://www.w3schools.com/w3css/default.asp" target="_blank">w3.css</a></p>
-    </footer>
-
     <!-- Scripts necessary for functionality -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 $(document).ready(function(){
     let positions = []; // Global variable to store position data
@@ -331,27 +347,51 @@ $(document).ready(function(){
 		});
     }
 
-function adjustSquare() {
-    var container = document.getElementById('financialDataContainer');
-    var width = container.offsetWidth;
-    container.style.height = width + 'px'; // Set height equal to current width
-}
+	function adjustSquare() {
+		var container = document.getElementById('financialDataContainer');
+		var width = container.offsetWidth;
+		container.style.height = width + 'px'; // Set height equal to current width
+	}
 
-window.onload = adjustSquare;
-window.onresize = adjustSquare; // Adjust size on window resize
 
-    // Attach click handlers to headers for sorting
-    $('#header-id').click(() => sortPositions('id')); // Make sure 'id' is a property in your positions objects
-    $('#header-code').click(() => sortPositions('code'));
-    $('#header-name').click(() => sortPositions('Chinese Name')); // Assuming the property is 'Chinese Name'
-    $('#header-direction').click(() => sortPositions('direction')); // Replace 'direction' with the actual property name
-    $('#header-quantity').click(() => sortPositions('quantity')); // Replace 'quantity' with the actual property name
-    $('#header-price').click(() => sortPositions('price')); // Replace 'price' with the actual property name
-    $('#header-last-price').click(() => sortPositions('last_price')); // Replace 'last_price' with the actual property name
-    $('#header-profit-ratio').click(() => sortPositions('Profit Percentage')); // Assuming the property is 'Profit Percentage'
-    $('#header-pnl').click(() => sortPositions('pnl')); // Replace 'pnl' with the actual property name
-    $('#header-stock-percentage').click(() => sortPositions('Stock Percentage')); // Assuming the property is 'Stock Percentage'
-});
+	window.onload = adjustSquare;
+	window.onresize = adjustSquare; // Adjust size on window resize
+
+	// Attach click handlers to headers for sorting
+	$('#header-id').click(() => sortPositions('id')); // Make sure 'id' is a property in your positions objects
+	$('#header-code').click(() => sortPositions('code'));
+	$('#header-name').click(() => sortPositions('Chinese Name')); // Assuming the property is 'Chinese Name'
+	$('#header-direction').click(() => sortPositions('direction')); // Replace 'direction' with the actual property name
+	$('#header-quantity').click(() => sortPositions('quantity')); // Replace 'quantity' with the actual property name
+	$('#header-price').click(() => sortPositions('price')); // Replace 'price' with the actual property name
+	$('#header-last-price').click(() => sortPositions('last_price')); // Replace 'last_price' with the actual property name
+	$('#header-profit-ratio').click(() => sortPositions('Profit Percentage')); // Assuming the property is 'Profit Percentage'
+	$('#header-pnl').click(() => sortPositions('pnl')); // Replace 'pnl' with the actual property name
+	$('#header-stock-percentage').click(() => sortPositions('Stock Percentage')); // Assuming the property is 'Stock Percentage'
+	});
+	
+	function hideSidebar() {
+    var mySidebar = document.getElementById("mySidebar");
+    var main = document.getElementById("main");
+    var overlay = document.getElementById("myOverlay");
+    var toggleButton = document.getElementById("toggleSidebarButton");
+
+    // Toggle the display state and adjust main content margin
+    if (mySidebar.style.display === 'block' || mySidebar.style.width !== '0px') {
+        mySidebar.style.width = '0';
+        main.style.marginLeft = '0';
+        overlay.style.display = 'none';
+    } else {
+        mySidebar.style.width = '300px'; // Original width
+        main.style.marginLeft = '300px';
+        overlay.style.display = 'block'; 
+		}
+	}
+
+	// Ensures proper initial setup
+	document.addEventListener('DOMContentLoaded', function() {
+		hideSidebar(); // Optionally hide the sidebar on page load
+	});
 </script>
 </body>
 </html>
