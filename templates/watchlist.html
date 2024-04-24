@@ -6,8 +6,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 <style>
-    .positive { color: red; }
-    .negative { color: green; }
+    .positive { color: green; }
+    .negative { color: red; }
+    .neutral { color: black; }
 </style>
 
 <div class="w3-container" style="display: flex; align-items: center;">
@@ -145,11 +146,19 @@ document.addEventListener('DOMContentLoaded', function() {
             changeElem.innerText = tick.change;
             changePctElem.innerText = tick.change_pct;
 
-            if (tick.change >= 0 && tick.change_pct >= 0) {
+            // Apply colors based on value
+            if (tick.change == 0 && tick.change_pct == 0) {
+                // Both change and change_pct are zero, apply neutral color
+                priceElem.className = 'neutral';
+                changeElem.className = 'neutral';
+                changePctElem.className = 'neutral';
+            } else if (tick.change < 0 || tick.change_pct < 0) {
+                // Any negative values, apply negative color
                 priceElem.className = 'negative';
                 changeElem.className = 'negative';
                 changePctElem.className = 'negative';
             } else {
+                // Positive values, apply positive color
                 priceElem.className = 'positive';
                 changeElem.className = 'positive';
                 changePctElem.className = 'positive';
@@ -159,7 +168,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
-
 function updateStockData(symbol, tick) {
     let row = document.getElementById(`stock-${symbol}`);
     if (row) {
