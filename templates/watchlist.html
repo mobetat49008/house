@@ -6,9 +6,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 <style>
-    .positive { color: green; }
-    .negative { color: red; }
-    .neutral { color: black; }
+    #sortableTable td.positive { color: green !important; }
+    #sortableTable td.negative { color: red !important; }
+    #sortableTable td.neutral { color: black !important; }
 </style>
 
 <div class="w3-container" style="display: flex; align-items: center;">
@@ -60,67 +60,6 @@
 
 <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', (event) => {
-    let draggedElement = null;
-
-    document.querySelectorAll('#sortableTable tbody tr').forEach(row => {
-        row.addEventListener('dragstart', function (e) {
-            draggedElement = this;
-        });
-
-        row.addEventListener('dragover', function (e) {
-            e.preventDefault();  // Necessary to allow dropping
-        });
-
-        row.addEventListener('drop', function (e) {
-            if (this !== draggedElement) {
-                let allRows = Array.from(this.parentNode.children);
-                let draggedIndex = allRows.indexOf(draggedElement);
-                let droppedIndex = allRows.indexOf(this);
-
-                if (draggedIndex < droppedIndex) {
-                    this.parentNode.insertBefore(draggedElement, this.nextSibling);
-                } else {
-                    this.parentNode.insertBefore(draggedElement, this);
-                }
-
-                // Optionally send the updated order to the server
-                updateOrderOnServer();
-            }
-        });
-    });
-});
-
-function updateOrderOnServer() {
-    let symbols = Array.from(document.querySelectorAll('#sortableTable tbody tr')).reduce((map, row) => {
-        let symbol = row.cells[2].textContent.trim();
-        let value = row.cells[3].textContent.trim(); // assuming the value is in the 4th column
-        map.set(symbol, value);
-        console.log(`Added symbol: ${symbol}, value: ${value}`); // Debug log
-        return map;
-    }, new Map());
-    console.log('Symbols map:', Array.from(symbols)); // Debug log
-    fetch('/update_watchlist_order', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({order: Object.fromEntries(symbols)})
-    })
-    .then(response => {
-        console.log('Server response:', response); // Debug log
-        return response.json();
-    })
-    .then(data => {
-        console.log('Order updated:', data);
-    })
-    .catch((error) => {
-        console.error('Error:', error);
-    });
-	
-	console.log('Final order object:', Object.fromEntries(symbols));
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     var socket = io();
 
@@ -134,74 +73,48 @@ document.addEventListener('DOMContentLoaded', function() {
             updateStockData(symbol, data[symbol]);
         }
     });
-
-    function updateStockData(symbol, tick) {
-        let row = document.getElementById(`stock-${symbol}`);
-        if (row) {
-            let priceElem = row.querySelector(`#stock-${symbol}-price`);
-            let changeElem = row.querySelector(`#stock-${symbol}-change`);
-            let changePctElem = row.querySelector(`#stock-${symbol}-change_pct`);
-
-            priceElem.innerText = tick.close;
-            changeElem.innerText = tick.change;
-            changePctElem.innerText = tick.change_pct;
-
-            // Apply colors based on value
-            if (tick.change == 0 && tick.change_pct == 0) {
-                // Both change and change_pct are zero, apply neutral color
-                priceElem.className = 'neutral';
-                changeElem.className = 'neutral';
-                changePctElem.className = 'neutral';
-            } else if (tick.change < 0 || tick.change_pct < 0) {
-                // Any negative values, apply negative color
-                priceElem.className = 'negative';
-                changeElem.className = 'negative';
-                changePctElem.className = 'negative';
-            } else {
-                // Positive values, apply positive color
-                priceElem.className = 'positive';
-                changeElem.className = 'positive';
-                changePctElem.className = 'positive';
-            }
-        } else {
-            console.log('Element not found for symbol:', symbol);
+	
+	socket.on('future_data', function(data) {
+        console.log('Future data received:', data);
+        for (var symbol in data) {
+            updateStockData(symbol, data[symbol]);
         }
-    }
+    });
+
+	function updateStockData(symbol, tick) {
+		let row = document.getElementById(`stock-${symbol}`);
+		if (row) {
+			let priceElem = row.querySelector(`#stock-${symbol}-price`);
+			let changeElem = row.querySelector(`#stock-${symbol}-change`);
+			let changePctElem = row.querySelector(`#stock-${symbol}-change_pct`);
+
+			let change = parseFloat(tick.change);
+			let changePct = parseFloat(tick.change_pct.replace('%', ''));
+
+			priceElem.innerText = tick.close;
+			changeElem.innerText = tick.change;
+			changePctElem.innerText = tick.change_pct;
+			if (change === 0 && changePct === 0) {
+				priceElem.style.color = 'black';
+				changeElem.style.color = 'black';
+				changePctElem.style.color = 'black';
+			} else if (change > 0 || changePct > 0) {
+				priceElem.style.color = 'red';
+				changeElem.style.color = 'red';
+				changePctElem.style.color = 'red';
+			} else {
+				priceElem.style.color = 'green';
+				changeElem.style.color = 'green';
+				changePctElem.style.color = 'green';
+			}
+		} else {
+			console.log('Element not found for symbol:', symbol);
+		}
+	}
+
+
+
 });
-function updateStockData(symbol, tick) {
-    let row = document.getElementById(`stock-${symbol}`);
-    if (row) {
-        let priceElem = row.querySelector(`#stock-${symbol}-price`);
-        let changeElem = row.querySelector(`#stock-${symbol}-change`);
-        let changePctElem = row.querySelector(`#stock-${symbol}-change_pct`);
-
-        priceElem.innerText = tick.close;
-        changeElem.innerText = tick.change;
-        changePctElem.innerText = tick.change_pct;
-
-        // Determine color based on change values
-        if (tick.change >= 0 && tick.change_pct >= 0) {
-            changeElem.classList.add('positive');
-            changePctElem.classList.add('positive');
-            priceElem.classList.add('positive');
-
-            changeElem.classList.remove('negative');
-            changePctElem.classList.remove('negative');
-            priceElem.classList.remove('negative');
-        } else {
-            changeElem.classList.add('negative');
-            changePctElem.classList.add('negative');
-            priceElem.classList.add('negative');
-
-            changeElem.classList.remove('positive');
-            changePctElem.classList.remove('positive');
-            priceElem.classList.remove('positive');
-        }
-    } else {
-        console.log('Element not found for symbol:', symbol);
-    }
-}
-
 </script>
 
 {% endblock %}
