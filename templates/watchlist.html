@@ -58,10 +58,32 @@
     </tbody>
 </table>
 
+<!-- Modal Structure -->
+<div id="confirmationModal" class="w3-modal">
+    <div class="w3-modal-content w3-animate-zoom w3-card-4" style="max-width:600px;">
+        <header class="w3-container w3-blue"> 
+            <span onclick="document.getElementById('confirmationModal').style.display='none'"
+                  class="w3-button w3-display-topright">&times;</span>
+            <h2>Confirmation Required</h2>
+        </header>
+        <div class="w3-container" style="text-align: center;">
+            <p>Do you want to continue with this action?</p>
+            <p><b>Symbol:</b> <span id="modalStockSymbol"></span></p>
+            <p><b>Company:</b> <span id="modalCompanyName"></span></p>
+            <p><b>Price:</b> <span id="modalPrice"></span></p>
+        </div>
+        <footer class="w3-container w3-padding-16 w3-light-grey">
+            <button class="w3-button w3-red" onclick="document.getElementById('confirmationModal').style.display='none'">Cancel</button>
+            <button class="w3-button w3-green" onclick="confirmAction()">Confirm</button>
+        </footer>
+    </div>
+</div>
+
 <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var socket = io();
+    let currentSelectedSymbol = null; // Track the currently selected symbol
 
     socket.on('connect', function() {
         console.log('Connected to server');
@@ -71,50 +93,85 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Stock data received:', data);
         for (var symbol in data) {
             updateStockData(symbol, data[symbol]);
+            // Update the modal if it is displaying data for this symbol
+            if (symbol === currentSelectedSymbol) {
+                document.getElementById('modalPrice').textContent = data[symbol].close;
+            }
         }
     });
-	
-	socket.on('future_data', function(data) {
+
+    socket.on('future_data', function(data) {
         console.log('Future data received:', data);
         for (var symbol in data) {
             updateStockData(symbol, data[symbol]);
+            // Also update the modal for future data
+            if (symbol === currentSelectedSymbol) {
+                document.getElementById('modalPrice').textContent = data[symbol].close;
+            }
         }
     });
 
-	function updateStockData(symbol, tick) {
-		let row = document.getElementById(`stock-${symbol}`);
-		if (row) {
-			let priceElem = row.querySelector(`#stock-${symbol}-price`);
-			let changeElem = row.querySelector(`#stock-${symbol}-change`);
-			let changePctElem = row.querySelector(`#stock-${symbol}-change_pct`);
+    function updateStockData(symbol, tick) {
+        let row = document.getElementById(`stock-${symbol}`);
+        if (row) {
+            let priceElem = row.querySelector(`#stock-${symbol}-price`);
+            let changeElem = row.querySelector(`#stock-${symbol}-change`);
+            let changePctElem = row.querySelector(`#stock-${symbol}-change_pct`);
 
-			let change = parseFloat(tick.change);
-			let changePct = parseFloat(tick.change_pct.replace('%', ''));
+            priceElem.innerText = tick.close;
+            changeElem.innerText = tick.change;
+            changePctElem.innerText = tick.change_pct;
+            updateColor(priceElem, changeElem, changePctElem, parseFloat(tick.change), parseFloat(tick.change_pct.replace('%', '')));
+        } else {
+            console.log('Element not found for symbol:', symbol);
+        }
+    }
 
-			priceElem.innerText = tick.close;
-			changeElem.innerText = tick.change;
-			changePctElem.innerText = tick.change_pct;
-			if (change === 0 && changePct === 0) {
-				priceElem.style.color = 'black';
-				changeElem.style.color = 'black';
-				changePctElem.style.color = 'black';
-			} else if (change > 0 || changePct > 0) {
-				priceElem.style.color = 'red';
-				changeElem.style.color = 'red';
-				changePctElem.style.color = 'red';
-			} else {
-				priceElem.style.color = 'green';
-				changeElem.style.color = 'green';
-				changePctElem.style.color = 'green';
-			}
-		} else {
-			console.log('Element not found for symbol:', symbol);
-		}
-	}
+    function updateColor(priceElem, changeElem, changePctElem, change, changePct) {
+        if (change === 0 && changePct === 0) {
+            priceElem.style.color = 'black';
+            changeElem.style.color = 'black';
+            changePctElem.style.color = 'black';
+        } else if (change > 0 || changePct > 0) {
+            priceElem.style.color = 'red';
+            changeElem.style.color = 'red';
+            changePctElem.style.color = 'red';
+        } else {
+            priceElem.style.color = 'green';
+            changeElem.style.color = 'green';
+            changePctElem.style.color = 'green';
+        }
+    }
 
+    const rows = document.querySelectorAll('#sortableTable tbody tr');
+    rows.forEach(row => {
+        row.addEventListener('click', function() {
+            if ({{ 'true' if 'logged_in' in session and session['logged_in'] else 'false' }}) {
+                const stockSymbol = this.cells[2].textContent; // Assume symbol is in the 3rd cell
+                const companyName = this.cells[3].textContent; // Assume company name is in the 4th cell
+                const price = this.cells[4].textContent; // Assume price is in the 5th cell
 
+                currentSelectedSymbol = stockSymbol; // Update the current symbol
 
+                document.getElementById('modalStockSymbol').textContent = stockSymbol;
+                document.getElementById('modalCompanyName').textContent = companyName;
+                document.getElementById('modalPrice').textContent = price;
+
+                document.getElementById('confirmationModal').style.display = 'block';
+            } else {
+                alert("You must be logged in to perform this action.");
+            }
+        });
+    });
+
+    function confirmAction() {
+        document.getElementById('confirmationModal').style.display='none';
+        // Implement what happens when Confirm is clicked
+    }
+
+    window.confirmAction = confirmAction; // Expose confirmAction to global scope if needed
 });
 </script>
+
 
 {% endblock %}
