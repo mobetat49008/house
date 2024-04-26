@@ -58,7 +58,7 @@
     </tbody>
 </table>
 
-<!-- Modal Structure -->
+<!-- Modal Structure with Input Field for Limit Order -->
 <div id="confirmationModal" class="w3-modal">
     <div class="w3-modal-content w3-animate-zoom w3-card-4" style="max-width:600px;">
         <header class="w3-container w3-blue"> 
@@ -71,10 +71,23 @@
             <p><b>Symbol:</b> <span id="modalStockSymbol"></span></p>
             <p><b>Company:</b> <span id="modalCompanyName"></span></p>
             <p><b>Price:</b> <span id="modalPrice"></span></p>
+            
+            <div style="float: right;">
+                <button id="marketBtn" class="w3-button w3-red" onclick="toggleMarketLimit('market')">Market</button>
+                <button id="limitBtn" class="w3-button" onclick="toggleMarketLimit('limit')">Limit</button>
+                <!-- Input field for limit price -->
+                <input type="number" id="limitPrice" style="display:none; width: 100px;" placeholder="Enter price">
+            </div>
+            <div style="clear: both;"></div>
         </div>
-        <footer class="w3-container w3-padding-16 w3-light-grey">
-            <button class="w3-button w3-red" onclick="document.getElementById('confirmationModal').style.display='none'">Cancel</button>
-            <button class="w3-button w3-green" onclick="confirmAction()">Confirm</button>
+        <footer class="w3-container w3-padding-16 w3-light-grey w3-row">
+            <div class="w3-col s4">
+                <button class="w3-button w3-red" style="float: left;" onclick="document.getElementById('confirmationModal').style.display='none'">Cancel</button>
+            </div>
+            <div class="w3-col s8">
+                <button id="buyBtn" class="w3-button w3-green" style="float: right;" onclick="executeOrder('buy')">Buy</button>
+                <button id="sellBtn" class="w3-button w3-red" style="float: right; margin-right: 10px;" onclick="executeOrder('sell')">Sell</button>
+            </div>
         </footer>
     </div>
 </div>
@@ -170,7 +183,60 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.confirmAction = confirmAction; // Expose confirmAction to global scope if needed
+	
+	// Default to 'market' option
+    toggleMarketLimit('market');
+	
+	// Listen for keydown events on the entire document
+    document.addEventListener('keydown', function(event) {
+        if (event.keyCode === 27) { // 27 is the key code for the ESC key
+            closeModal();
+        }
+    });
 });
+
+function toggleMarketLimit(type) {
+    var marketBtn = document.getElementById('marketBtn');
+    var limitBtn = document.getElementById('limitBtn');
+    var limitPriceInput = document.getElementById('limitPrice');
+
+    if (type === 'market') {
+        marketBtn.className = 'w3-button w3-red';
+        limitBtn.className = 'w3-button w3-grey';
+        limitPriceInput.style.display = 'none';
+    } else {
+        marketBtn.className = 'w3-button w3-grey';
+        limitBtn.className = 'w3-button w3-red';
+        limitPriceInput.style.display = 'inline-block'; // Show the limit price input
+    }
+}
+
+function executeOrder(type) {
+    var orderType = document.getElementById('marketBtn').classList.contains('w3-red') ? 'market' : 'limit';
+    var symbol = document.getElementById('modalStockSymbol').textContent;
+    var companyName = document.getElementById('modalCompanyName').textContent; // Optional, not used in the request
+    var price = orderType === 'limit' ? document.getElementById('limitPrice').value : document.getElementById('modalPrice').textContent;
+
+    // Using Fetch to send a POST request to Flask
+    fetch('/order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `order_type=${orderType}&transaction_type=${type}&symbol=${symbol}&price=${price}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Order status: ' + data.message);
+        document.getElementById('confirmationModal').style.display='none';
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Adding a function to close the modal
+function closeModal() {
+    document.getElementById('confirmationModal').style.display = 'none';
+}
 </script>
 
 

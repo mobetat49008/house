@@ -801,6 +801,28 @@ def logout_html():
     session.pop('username', None)  # Clear the username from session
     return redirect(url_for('watchlist'))
 
+def process_order(order_type, transaction_type, symbol, price):
+    # Simulated order processing logic
+    print(f"Processing {transaction_type} order for {symbol} at {price} with {order_type} type.")
+    return True
+
+@app.route('/order', methods=['POST'])
+def order():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'User not logged in'}), 401
+
+    order_type = request.form.get('order_type')  # 'market' or 'limit'
+    transaction_type = request.form.get('transaction_type')  # 'buy' or 'sell'
+    symbol = request.form.get('symbol')
+    price = request.form.get('price')
+    print("WEI------------------")
+    print(f"order_type:{order_type},transaction_type:{transaction_type},symbol:{symbol},price:{price}")
+    # Call to process the order
+    if process_order(order_type, transaction_type, symbol, price):
+        return jsonify({'message': 'Order processed successfully'}), 200
+    else:
+        return jsonify({'error': 'Failed to process order'}), 500
+
 if __name__ == '__main__':
 
     login()
