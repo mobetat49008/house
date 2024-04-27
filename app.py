@@ -619,7 +619,6 @@ def read_data(filename):
     if os.path.exists(filename):
         with open(filename, 'r', encoding='utf-8') as file:
             data = json.load(file)
-        print("WEIIII---")
         print(data)
         return data
     else:
@@ -677,19 +676,26 @@ def add_stock():
     data = read_data(filename)
     add_item(data, symbol, description)
     write_data(filename, data)
-    if 'TXF' in symbol:
+    if 'TXF' in symbol or 'MXF' in symbol:
         # It's a future contract
         year_month = symbol[-6:]  # Assumes the format 'TXFYYYYMM', adjust if necessary
         print(year_month)
-        contract_symbol = f"TXF{year_month}"
+        contract_symbol = f"{symbol[0:3]}{year_month}"
         print(f"WEI-----contract_symbol:{contract_symbol}-----")
         mapping_symbol = translate_string(contract_symbol)
         print(f"Will subscribe:{mapping_symbol}")
-        api.quote.subscribe(
-            api.Contracts.Futures.TXF[mapping_symbol],
-            quote_type=sj.constant.QuoteType.Tick, 
-            version=sj.constant.QuoteVersion.v1
-        )
+        if symbol[0:3] == "TXF":
+            api.quote.subscribe(
+                api.Contracts.Futures.TXF[mapping_symbol],
+                quote_type=sj.constant.QuoteType.Tick, 
+                version=sj.constant.QuoteVersion.v1
+            )
+        elif symbol[0:3] == "MXF":
+            api.quote.subscribe(
+                api.Contracts.Futures.MXF[mapping_symbol],
+                quote_type=sj.constant.QuoteType.Tick, 
+                version=sj.constant.QuoteVersion.v1
+            )
     else:
         # It's a stock
         api.quote.subscribe(
@@ -726,7 +732,7 @@ def update_order():
     
 def simplify_symbol(symbol):
     # This function assumes future symbols start with "TXF" and followed by year and month
-    if symbol.startswith("TXF"):# and re.match(r'^TXF6$', symbol)
+    if symbol.startswith("TXF") or symbol.startswith("MXF"):# and re.match(r'^TXF6$', symbol)
         string = translate_string(symbol)
         return string  # TXFD4,TXFE4,TXFF4
     return symbol
@@ -750,7 +756,7 @@ def watchlist():
 def get_description_from_csv(symbol):
     import pandas as pd
     try:
-        if 'TXF' not in symbol:
+        if 'TXF' not in symbol and 'MXF' not in symbol:
             df = pd.read_csv('stock_list.csv', dtype={'code': str})  # Assuming 'code' is the column for symbols
             mapping = df.set_index('code')['name'].to_dict()
 
@@ -763,15 +769,22 @@ def register_market_callbacks():
     # Suppose you read the symbols from a JSON file or database
     symbols = read_data(filename).keys()  # Assuming read_data returns a dictionary
     for symbol in symbols:
-        if 'TXF' in symbol:
+        if 'TXF' in symbol or 'MXF' in symbol:
             # It's a future contract
             year_month = symbol[-6:]  # Assumes the format 'TXFYYYYMM', adjust if necessary
-            contract_symbol = f"TXF{year_month}"
-            api.quote.subscribe(
-                api.Contracts.Futures.TXF[contract_symbol],
-                quote_type=sj.constant.QuoteType.Tick, 
-                version=sj.constant.QuoteVersion.v1
-            )
+            contract_symbol = f"{symbol[0:3]}{year_month}"
+            if symbol[0:3] == "TXF":
+                api.quote.subscribe(
+                    api.Contracts.Futures.TXF[contract_symbol],
+                    quote_type=sj.constant.QuoteType.Tick, 
+                    version=sj.constant.QuoteVersion.v1
+                )
+            elif symbol[0:3] == "MXF":
+                api.quote.subscribe(
+                    api.Contracts.Futures.MXF[contract_symbol],
+                    quote_type=sj.constant.QuoteType.Tick, 
+                    version=sj.constant.QuoteVersion.v1
+                )
         else:
             # It's a stock
             api.quote.subscribe(
@@ -801,13 +814,18 @@ def logout_html():
     session.pop('username', None)  # Clear the username from session
     return redirect(url_for('watchlist'))
 
-def process_order(order_type, transaction_type, symbol, price):
+def process_order(order_type, transaction_type, symbol, price,symbol_type):
     # Simulated order processing logic
-    print(f"Processing {transaction_type} order for {symbol} at {price} with {order_type} type.")
+    print(f"[{symbol_type}]Processing {transaction_type} order for {symbol} at {price} with {order_type} type.")
     return True
+
+def is_all_digits(input_string):
+    return input_string.isdigit()
 
 @app.route('/order', methods=['POST'])
 def order():
+    global api
+    order_simplified = None
     if not session.get('logged_in'):
         return jsonify({'error': 'User not logged in'}), 401
 
@@ -815,10 +833,91 @@ def order():
     transaction_type = request.form.get('transaction_type')  # 'buy' or 'sell'
     symbol = request.form.get('symbol')
     price = request.form.get('price')
+    quantity = request.form.get('quantity')
     print("WEI------------------")
-    print(f"order_type:{order_type},transaction_type:{transaction_type},symbol:{symbol},price:{price}")
+    print(f"order_type:{order_type},transaction_type:{transaction_type},symbol:{symbol},price:{price},quantity:{quantity}")
+    #action (str): {Buy: 買, Sell: 賣}
+    #price_type (str): {LMT: 限價, MKT: 市價, MKP: 範圍市價}
+    # order_type:market,transaction_type:buy,symbol:TXFE4,price:20162
     # Call to process the order
-    if process_order(order_type, transaction_type, symbol, price):
+    if order_type == "market":
+        order_simplified = "MKT"
+    elif order_type == "limit":
+        order_simplified = "LMT"
+    
+    # Use getattr to dynamically get the right attribute from sj.constant.Action
+    action = getattr(sj.constant.Action, transaction_type)
+    price_type = getattr(sj.constant.FuturesPriceType, order_simplified)
+
+    if 'MKT' == price_type:
+        price_sent = 99
+        o_type = sj.constant.OrderType.IOC
+    elif "LMT" == price_type:
+        price_sent = price
+        o_type = sj.constant.OrderType.ROD
+
+    if is_all_digits(symbol):
+        symbol_type = "stock"
+    else:
+        symbol_type = "future"
+
+    if process_order(order_type, transaction_type, symbol, price,symbol_type):
+    
+        '''#Stock
+        contract = api.Contracts.Stocks['2890'] #取得Contract物件
+        order = api.Order( #建立order內容
+            price=13.8,
+            quantity=1, 
+            action=Action.Buy, 
+            price_type=StockPriceType.LMT, 
+            order_type=TFTOrderType.ROD, 
+            order_lot=TFTStockOrderLot.Common, 
+            account=api.stock_account
+        )
+
+        trade = api.place_order(contract, order) #執行place_order並傳入contract及order建立委託單
+        print(trade) #將委託單內容輸出至console
+        '''
+
+        '''Future
+        contract = api.Contracts.Futures.TXF['TXF202110'] #期貨Contract
+        order = api.Order(action=Action.Buy,
+            price=10200, #價格(點)
+            quantity=2, #口數
+            price_type=StockPriceType.LMT,
+            order_type=FuturesOrderType.ROD,
+            octype=FuturesOCType.Auto, #倉別，使用自動
+            account=api.futopt_account #下單帳戶指定期貨帳戶
+        )
+
+        trade = api.place_order(contract, order)
+        print(trade)
+        '''
+        #contract = api.Contracts.Futures.MXF[symbol] #取得Contract物件
+        if symbol_type == "future":
+            contract = api.Contracts.Stocks[symbol]
+            order = api.Order(
+                action=action,
+                price=price,
+                quantity=quantity,
+                price_type=price_type,
+                order_type=o_type, 
+                octype=sj.constant.FuturesOCType.Auto,
+                account=api.futopt_account
+            )
+        elif symbol_type == "stock":
+            contract = getattr(api.Contracts.Futures, symbol[0:3])[symbol]
+            order = api.Order(
+                action=action,
+                price=price,
+                quantity=quantity,
+                price_type=price_type,
+                order_type=o_type, 
+                octype=sj.constant.FuturesOCType.Auto,
+                account=api.futopt_account
+            )
+        trade = api.place_order(contract, order)
+
         return jsonify({'message': 'Order processed successfully'}), 200
     else:
         return jsonify({'error': 'Failed to process order'}), 500

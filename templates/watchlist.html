@@ -66,27 +66,28 @@
                   class="w3-button w3-display-topright">&times;</span>
             <h2>Confirmation Required</h2>
         </header>
-        <div class="w3-container" style="text-align: center;">
-            <p>Do you want to continue with this action?</p>
-            <p><b>Symbol:</b> <span id="modalStockSymbol"></span></p>
-            <p><b>Company:</b> <span id="modalCompanyName"></span></p>
-            <p><b>Price:</b> <span id="modalPrice"></span></p>
-            
-            <div style="float: right;">
-                <button id="marketBtn" class="w3-button w3-red" onclick="toggleMarketLimit('market')">Market</button>
-                <button id="limitBtn" class="w3-button" onclick="toggleMarketLimit('limit')">Limit</button>
-                <!-- Input field for limit price -->
-                <input type="number" id="limitPrice" style="display:none; width: 100px;" placeholder="Enter price">
+        <div class="w3-container" style="display: flex; justify-content: space-between; align-items: start;">
+            <div style="text-align: center;">
+                <p>Do you want to continue with this action?</p>
+                <p><b>Symbol:</b> <span id="modalStockSymbol"></span></p>
+                <p><b>Company:</b> <span id="modalCompanyName"></span></p>
+                <p><b>Price:</b> <span id="modalPrice"></span></p>
+                <p><b>Quantity:</b> <input type="number" id="modalQuantity" value="1" min="1" style="width: 80px; border: none; outline: none;" onchange="validateQuantity()"></p>
+
             </div>
-            <div style="clear: both;"></div>
+            <div style="display: flex; flex-direction: column; margin-top: 20px;">
+                <button id="marketBtn" class="w3-button" style="background-color: lightblue; margin-bottom: 10px; padding: 4px 6px; font-size: 12px;" onclick="toggleMarketLimit('market')">Market</button>
+                <button id="limitBtn" class="w3-button" style="background-color: lightblue; padding: 4px 6px; font-size: 12px;" onclick="toggleMarketLimit('limit')">Limit</button>
+				<input type="number" id="limitPrice" style="display: none; width: 100px; margin-top: 10px;" placeholder="Enter price">
+            </div>
         </div>
         <footer class="w3-container w3-padding-16 w3-light-grey w3-row">
             <div class="w3-col s4">
                 <button class="w3-button w3-red" style="float: left;" onclick="document.getElementById('confirmationModal').style.display='none'">Cancel</button>
             </div>
             <div class="w3-col s8">
-                <button id="buyBtn" class="w3-button w3-green" style="float: right;" onclick="executeOrder('buy')">Buy</button>
-                <button id="sellBtn" class="w3-button w3-red" style="float: right; margin-right: 10px;" onclick="executeOrder('sell')">Sell</button>
+                <button id="buyBtn" class="w3-button w3-green" style="float: right;" onclick="executeOrder('Buy')">Buy</button>
+                <button id="sellBtn" class="w3-button w3-red" style="float: right; margin-right: 10px;" onclick="executeOrder('Sell')">Sell</button>
             </div>
         </footer>
     </div>
@@ -214,8 +215,8 @@ function toggleMarketLimit(type) {
 function executeOrder(type) {
     var orderType = document.getElementById('marketBtn').classList.contains('w3-red') ? 'market' : 'limit';
     var symbol = document.getElementById('modalStockSymbol').textContent;
-    var companyName = document.getElementById('modalCompanyName').textContent; // Optional, not used in the request
     var price = orderType === 'limit' ? document.getElementById('limitPrice').value : document.getElementById('modalPrice').textContent;
+    var quantity = document.getElementById('modalQuantity').value;  // Get the quantity from the input
 
     // Using Fetch to send a POST request to Flask
     fetch('/order', {
@@ -223,7 +224,7 @@ function executeOrder(type) {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `order_type=${orderType}&transaction_type=${type}&symbol=${symbol}&price=${price}`
+        body: `order_type=${orderType}&transaction_type=${type}&symbol=${symbol}&price=${price}&quantity=${quantity}`  // Include quantity in the request
     })
     .then(response => response.json())
     .then(data => {
@@ -231,6 +232,14 @@ function executeOrder(type) {
         document.getElementById('confirmationModal').style.display='none';
     })
     .catch(error => console.error('Error:', error));
+}
+
+function validateQuantity() {
+    var quantityInput = document.getElementById('modalQuantity');
+    if (quantityInput.value < 1) {
+        quantityInput.value = 1;  // Reset to 1 if invalid value is entered
+        alert("Quantity must be at least 1.");
+    }
 }
 
 // Adding a function to close the modal
