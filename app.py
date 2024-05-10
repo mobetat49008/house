@@ -647,15 +647,33 @@ def remove_stock():
     write_data(filename, data)
     return redirect(url_for('watchlist'))
 
-def translate_string(input_string):
-    # Extract the number from the string
-    number = int(input_string[-2:])
+# Map between numeric and alphabetic months
+def numeric_to_alpha(month):
+    return chr(month + 64)
 
-    # Translate the number to its corresponding alphabet (1=A, 2=B, ..., 26=Z)
-    alphabet = chr(number + 64)  # ASCII value of 'A' is 65
+def alpha_to_numeric(alphabet):
+    return ord(alphabet) - 64
 
-    # Return the original string with the number replaced by the alphabet and the number
-    return input_string[0:3] + alphabet + "4"
+# Translate symbol to simplified form
+def translate_string_to_simplified(input_string):
+    # Extract the last two digits for the month
+    month = int(input_string[-2:])
+    # Convert month to the corresponding alphabet
+    alphabet = numeric_to_alpha(month)
+
+    # Return the original string with the month replaced by the alphabet and '4'
+    return input_string[:3] + alphabet + "4"
+
+# Translate simplified form back to the original symbol
+def translate_string_to_original(input_string):
+    # Extract the alphabet representing the month
+    alphabet = input_string[3]
+    # Convert the alphabet back to a numeric month
+    month = str(alpha_to_numeric(alphabet)).zfill(2)
+
+    # Extract the remaining year portion and add back the original month
+    year_prefix = "2024"  # Assuming year 2024 as per example
+    return input_string[:3] + year_prefix + month
     
 def reverse_translate_string(input_string):
     # Extract the alphabet from the string
@@ -682,7 +700,8 @@ def add_stock():
         print(year_month)
         contract_symbol = f"{symbol[0:3]}{year_month}"
         print(f"WEI-----contract_symbol:{contract_symbol}-----")
-        mapping_symbol = translate_string(contract_symbol)
+        #mapping_symbol = translate_string(contract_symbol)
+        mapping_symbol = simplify_symbol(contract_symbol)
         print(f"Will subscribe:{mapping_symbol}")
         if symbol[0:3] == "TXF":
             api.quote.subscribe(
@@ -730,11 +749,13 @@ def update_order():
     return jsonify({'status': 'success'})
 
     
+# Function to translate in either direction
 def simplify_symbol(symbol):
-    # This function assumes future symbols start with "TXF" and followed by year and month
-    if symbol.startswith("TXF") or symbol.startswith("MXF"):# and re.match(r'^TXF6$', symbol)
-        string = translate_string(symbol)
-        return string  # TXFD4,TXFE4,TXFF4
+    if symbol.startswith("TXF") or symbol.startswith("MXF"):
+        if symbol[3].isdigit():  # Case: original form
+            return translate_string_to_simplified(symbol)
+        else:  # Case: simplified form
+            return translate_string_to_original(symbol)
     return symbol
 
 @app.route('/watchlist')
@@ -835,7 +856,7 @@ def order():
     price = request.form.get('price')
     quantity = request.form.get('quantity')
     print("WEI------------------")
-    print(f"order_type:{order_type},transaction_type:{transaction_type},symbol:{symbol},price:{price},quantity:{quantity}")
+
     #action (str): {Buy: 買, Sell: 賣}
     #price_type (str): {LMT: 限價, MKT: 市價, MKP: 範圍市價}
     # order_type:market,transaction_type:buy,symbol:TXFE4,price:20162
@@ -861,6 +882,7 @@ def order():
     else:
         symbol_type = "future"
 
+    print(f"order_type:{order_type},transaction_type:{transaction_type},symbol:{symbol},symbol_type={symbol_type},price:{price},quantity:{quantity},price_type={price_type}")
     if process_order(order_type, transaction_type, symbol, price,symbol_type):
     
         '''#Stock
@@ -895,17 +917,6 @@ def order():
         '''
         #contract = api.Contracts.Futures.MXF[symbol] #取得Contract物件
         if symbol_type == "future":
-            contract = api.Contracts.Stocks[symbol]
-            order = api.Order(
-                action=action,
-                price=price,
-                quantity=quantity,
-                price_type=price_type,
-                order_type=o_type, 
-                octype=sj.constant.FuturesOCType.Auto,
-                account=api.futopt_account
-            )
-        elif symbol_type == "stock":
             contract = getattr(api.Contracts.Futures, symbol[0:3])[symbol]
             order = api.Order(
                 action=action,
@@ -916,6 +927,20 @@ def order():
                 octype=sj.constant.FuturesOCType.Auto,
                 account=api.futopt_account
             )
+        elif symbol_type == "stock":
+            contract = api.Contracts.Stocks[symbol]
+            order = api.Order(
+                action=action,
+                price=price,
+                quantity=quantity,
+                price_type=price_type,
+                order_type=o_type, 
+                octype=sj.constant.FuturesOCType.Auto,
+                account=api.futopt_account
+            )
+        print(contract)
+        print(getattr(api.Contracts.Futures, symbol[0:3]))
+        print(simplify_symbol(symbol))
         trade = api.place_order(contract, order)
 
         return jsonify({'message': 'Order processed successfully'}), 200
