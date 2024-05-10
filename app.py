@@ -482,13 +482,9 @@ def order_cb(stat, msg):
         order_code = msg['contract']['code']
         security_type = msg['contract']['security_type']
         data = {
-        'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},股票代碼:{order_code},價格:{order_price},數量:{order_quantity}'    # 設定要發送的訊息
+        'message': f'Contract:{security_type},Type:{op_type},Direction:{order_action},股票代碼:{order_code},股票名稱:{get_description_from_csv(order_code)}價格:{order_price},數量:{order_quantity}'    # 設定要發送的訊息
         }
-
-        
-    
-
-
+    #LINE NOTIFIER
     data = requests.post(url, headers=headers, data=data)   # 使用 POST 方法
     '''
     line_bot_api.push_message(
