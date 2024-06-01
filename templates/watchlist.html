@@ -16,7 +16,7 @@
     
     <!-- Form for adding new stock symbol -->
     <form action="/add_stock" method="post" style="flex-grow: 1; display: flex; align-items: center;">
-        <input type="text" name="stock_symbol" placeholder="Enter stock symbol" required 
+        <input type="text" name="stock_symbol" placeholder="Enter stock symbol or TXF202406 for future" required 
                style="height: 36px; border-radius: 10px; flex-grow: 1; margin-right: 10px;">
         <button type="submit" class="w3-btn w3-blue">Add</button>
     </form>
@@ -193,8 +193,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert("You must be logged in to perform this action.");
             }
         });
+            // Drag-and-drop events
+            row.addEventListener('dragstart', handleDragStart);
+            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('drop', handleDrop);
+            row.addEventListener('dragend', handleDragEnd);
     });
 
+        function handleDragStart(e) {
+            this.style.opacity = '0.4';
+            dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move'; // See the section on the DataTransfer object.
+            return false;
+        }
+
+       function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation(); // Stops some browsers from redirecting.
+            }
+
+            if (dragSrcEl !== this) {
+                // Swap the positions of the dragged and dropped rows
+                const parent = dragSrcEl.parentNode;
+                if (dragSrcEl.rowIndex < this.rowIndex) {
+                    parent.insertBefore(dragSrcEl, this.nextSibling);
+                } else {
+                    parent.insertBefore(dragSrcEl, this);
+                }
+                // Ensure TXF or MXF rows are not lost
+                const txfMxfRows = Array.from(document.querySelectorAll('[id^=TXF], [id^=MXF]'));
+                txfMxfRows.forEach(row => {
+                    if (!document.getElementById(row.id)) {
+                        parent.appendChild(row);
+                        // Re-attach event listeners to the new row
+                        row.addEventListener('dragstart', handleDragStart);
+                        row.addEventListener('dragover', handleDragOver);
+                        row.addEventListener('drop', handleDrop);
+                        row.addEventListener('dragend', handleDragEnd);
+                    }
+                });
+                // Send the new order to the server
+                updateOrderOnServer();
+            }
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.style.opacity = '1';
+            rows.forEach(row => {
+                row.classList.remove('over');
+            });
+        }
     function confirmAction() {
         document.getElementById('confirmationModal').style.display='none';
         // Implement what happens when Confirm is clicked
@@ -280,6 +337,34 @@ function showRank(rankType) {
     })
     .catch(error => console.error('Error fetching rank data:', error));
 }
+
+    // Function to update the order on the server
+    function updateOrderOnServer() {
+        const rows = document.querySelectorAll('#sortableTable tbody tr');
+        const order = {};
+
+        rows.forEach((row, index) => {
+            const symbol = row.id.replace('stock-', '');
+            order[symbol] = index;  // Store the index as the new order
+        });
+
+        fetch('/update_watchlist_order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ order: order }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log('Order updated successfully on the server');
+            } else {
+                console.error('Failed to update order on the server');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
 </script>
 
 

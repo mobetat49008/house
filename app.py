@@ -21,6 +21,7 @@ from collections import defaultdict, deque
 from shioaji import TickFOPv1, Exchange
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
+from collections import OrderedDict
 
 from linebot import (
     LineBotApi, WebhookHandler
@@ -572,33 +573,41 @@ def job_function():
 def login():
     global api
 
-    # Reading the JSON file
-    with open(configuration_file_path, 'r') as file:
-        data = json.load(file)
+    try:
+        # Reading the JSON file
+        with open(configuration_file_path, 'r') as file:
+            data = json.load(file)
 
-    # Accessing the fields from the JSON data
-    person_id_json = data['PersonID']
-    password = data['Password']
-    ca_path_json = data['ca_path']
-    API_KEY = data['API_KEY']
-    API_SECRET_KEY = data['API_SECRET_KEY']
+        # Accessing the fields from the JSON data
+        person_id_json = data['PersonID']
+        password = data['Password']
+        ca_path_json = data['ca_path']
+        API_KEY = data['API_KEY']
+        API_SECRET_KEY = data['API_SECRET_KEY']
 
-    #First time need to add simulation=True for confirmation
-    api = sj.Shioaji()
-    api.login(
-        api_key=API_KEY, 
-        secret_key=API_SECRET_KEY, 
-        contracts_cb=lambda security_type: print(f"{repr(security_type)} fetch done.")
-    )
+        # First time need to add simulation=True for confirmation
+        api = sj.Shioaji()
+        api.login(
+            api_key=API_KEY, 
+            secret_key=API_SECRET_KEY, 
+            contracts_cb=lambda security_type: print(f"{repr(security_type)} fetch done.")
+        )
 
-    result = api.activate_ca(
-        ca_path=ca_path_json,
-        ca_passwd=password,
-        person_id=person_id_json,
-    )
-    
-    if not result:
-        print(f"The CA status is {result}")
+        result = api.activate_ca(
+            ca_path=ca_path_json,
+            ca_passwd=password,
+            person_id=person_id_json,
+        )
+
+        if not result:
+            return jsonify({'message': f'The CA status is {result}', 'success': False})
+
+        session['logged_in'] = True
+        session['username'] = person_id_json
+        return jsonify({'message': 'Reconnected successfully!', 'success': True})
+
+    except Exception as e:
+        return jsonify({'message': f'Failed to reconnect: {str(e)}', 'success': False})
 
 # Initialize an empty dictionary to store stock data
 stock_data = {}
@@ -622,6 +631,8 @@ def read_data(filename):
 
 def write_data(filename, data):
     """Writes a dictionary to a JSON file."""
+    print("WEIII---write_data")
+    print(data)
     with open(filename, 'w', encoding='utf-8') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
 
@@ -719,7 +730,7 @@ def add_stock():
             version=sj.constant.QuoteVersion.v1
         )
     return redirect(url_for('watchlist'))
-
+'''
 @app.route('/update_watchlist_order', methods=['POST'])
 def update_order():
     raw_data = request.get_json()  # Get raw JSON data
@@ -743,7 +754,36 @@ def update_order():
     # Implement logic to update the order in your database or session
     write_data(filename, modified_order)
     return jsonify({'status': 'success'})
+'''
+@app.route('/update_watchlist_order', methods=['POST'])
+def update_order():
+    raw_data = request.get_json()  # Get raw JSON data
+    new_order = raw_data.get('order')
 
+    # Read existing stock data
+    stock_data = read_data(filename)
+
+    # Create a reverse lookup for simplified symbols
+    reverse_lookup = {simplify_symbol(k): k for k in stock_data.keys()}
+
+    # Create a new ordered dictionary based on the new order
+    ordered_data = OrderedDict()
+
+    # Add symbols in the new order first
+    for key in sorted(new_order, key=new_order.get):
+        if key in reverse_lookup:
+            original_key = reverse_lookup[key]
+            ordered_data[original_key] = stock_data[original_key]
+
+    # Add any missing keys back in their original order
+    for key in stock_data:
+        if key not in ordered_data:
+            ordered_data[key] = stock_data[key]
+
+    # Write the ordered data back to the file
+    write_data(filename, ordered_data)
+    
+    return jsonify({'status': 'success'})
     
 # Function to translate in either direction
 def simplify_symbol(symbol):
@@ -943,9 +983,56 @@ def order():
     else:
         return jsonify({'error': 'Failed to process order'}), 500
 
+@app.route('/show_rank/<rank_type>')
+def show_rank(rank_type):
+    print(f">>show_rank:{rank_type}")
+
+    if rank_type == 'ChangePercentRank':
+        scanners = api.scanners(
+            scanner_type=sj.constant.ScannerType.ChangePercentRank, 
+            count=5
+        )
+    elif rank_type == 'ChangePriceRank':
+        scanners = api.scanners(
+            scanner_type=sj.constant.ScannerType.ChangePriceRank, 
+            count=5
+        )
+    elif rank_type == 'DayRangeRank':
+        scanners = api.scanners(
+            scanner_type=sj.constant.ScannerType.DayRangeRank, 
+            count=5
+        )
+    elif rank_type == 'VolumeRank':
+        scanners = api.scanners(
+            scanner_type=sj.constant.ScannerType.VolumeRank, 
+            count=5
+        )
+    elif rank_type == 'AmountRank':
+        scanners = api.scanners(
+            scanner_type=sj.constant.ScannerType.AmountRank, 
+            count=5
+        )
+    else:
+        return jsonify({'error': 'Invalid rank type'})
+
+    df = pd.DataFrame(s.__dict__ for s in scanners)
+    df.ts = pd.to_datetime(df.ts)
+    df = df[['date', 'code', 'name', 'ts', 'close']]
+    
+    data = df.to_dict(orient='records')
+    return jsonify(data)
+    
+@app.route('/reconnect')
+def reconnect():
+    global api
+    api.logout()
+    
+    return login()
+
 if __name__ == '__main__':
 
-    login()
+    with app.app_context():
+        login()
     #api.set_context(r)
     # In order to use context, set bind=True
     #api.quote.set_on_tick_fop_v1_callback(quote_callback, bind=True)

@@ -175,6 +175,7 @@
         {% else %}
             <a href="/login?next={{ request.path }}" class="w3-bar-item w3-button w3-right" style="height:46px;">Login</a>
         {% endif %}
+		 <button class="w3-bar-item w3-button w3-right" style="height:46px;" onclick="reconnect()">Reconnect</button>
     </div>
 
     <nav class="w3-sidebar w3-collapse w3-black w3-animate-left" style="width:300px;" id="mySidebar"><br>
@@ -203,6 +204,16 @@
         {% block content %}
         <!-- Dynamic content goes here -->
         {% endblock %}
+    </div>
+
+    <div id="rank-data-modal" class="w3-modal">
+        <div class="w3-modal-content">
+            <div class="w3-container">
+                <span onclick="document.getElementById('rank-data-modal').style.display='none'" class="w3-button w3-display-topright">&times;</span>
+                <h2 id="modal-title">Rank Data</h2>
+                <div id="rank-data"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts necessary for functionality -->
@@ -427,22 +438,67 @@ $(document).ready(function(){
         hideSidebar(); // Optionally hide the sidebar on page load
     });
 
-    function showRank(rankType) {
-        // Fetch rank data from the server
-        fetch(`/rank/${rankType}`)
-        .then(response => response.json())
-        .then(data => {
-            // Populate the modal with rank data
-            let rankList = '';
-            data.forEach((item, index) => {
-                rankList += `<p>${index + 1}. ${item.symbol}: ${item.value}</p>`;
+        function showRank(rankType) {
+            let rankTitles = {
+                'ChangePercentRank': 'Change Percent Rank',
+                'ChangePriceRank': 'Change Price Rank',
+                'DayRangeRank': 'Day Range Rank',
+                'VolumeRank': 'Volume Rank',
+                'AmountRank': 'Amount Rank'
+            };
+
+            // Set the modal title based on the selected rank type
+            $('#modal-title').text(`Rank Data (${rankTitles[rankType]})`);
+
+            $.ajax({
+                url: `/show_rank/${rankType}`,
+                method: 'GET',
+                success: function(data) {
+                    let rankDataDiv = $('#rank-data');
+                    rankDataDiv.empty();
+                    if (data.error) {
+                        rankDataDiv.append(`<p>${data.error}</p>`);
+                    } else {
+                        let table = $('<table class="w3-table w3-bordered"><tr><th>Date</th><th>Code</th><th>Name</th><th>Timestamp</th><th>Close</th></tr></table>');
+                        data.forEach(item => {
+                            let row = $('<tr></tr>');
+                            row.append(`<td>${item.date}</td>`);
+                            row.append(`<td>${item.code}</td>`);
+                            row.append(`<td>${item.name}</td>`);
+                            row.append(`<td>${item.ts}</td>`);
+                            row.append(`<td>${item.close}</td>`);
+                            table.append(row);
+                        });
+                        rankDataDiv.append(table);
+                    }
+                    document.getElementById('rank-data-modal').style.display = 'block';
+                },
+                error: function(error) {
+                    $('#rank-data').html('<p>請確認目前是開盤時段</p>');
+                    document.getElementById('rank-data-modal').style.display = 'block';
+                }
             });
-            document.getElementById('rankContent').innerHTML = rankList;
-            document.getElementById('rankModalTitle').textContent = rankType.replace(/([A-Z])/g, ' $1').trim();
-            document.getElementById('rankModal').style.display = 'block';
-        })
-        .catch(error => console.error('Error fetching rank data:', error));
-    }
+        }
+
+        // Add event listener for the Esc key to close the modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.getElementById('rank-data-modal').style.display = 'none';
+            }
+        });
+		
+		function reconnect() {
+            $.ajax({
+                url: '/reconnect',
+                method: 'GET',
+                success: function(response) {
+                    alert('Reconnected successfully!');
+                },
+                error: function(error) {
+                    alert('Failed to reconnect.');
+                }
+            });
+        }
     </script>
 </body>
 </html>
