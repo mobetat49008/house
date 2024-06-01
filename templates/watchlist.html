@@ -93,6 +93,23 @@
     </div>
 </div>
 
+<!-- Rank Modal Structure -->
+<div id="rankModal" class="w3-modal">
+    <div class="w3-modal-content w3-animate-zoom w3-card-4" style="max-width:600px;">
+        <header class="w3-container w3-blue">
+            <span onclick="document.getElementById('rankModal').style.display='none'"
+                  class="w3-button w3-display-topright">&times;</span>
+            <h2 id="rankModalTitle">Rank</h2>
+        </header>
+        <div class="w3-container" id="rankContent">
+            <!-- Rank data will be populated here -->
+        </div>
+        <footer class="w3-container w3-padding-16 w3-light-grey">
+            <button class="w3-button w3-red" style="float: right;" onclick="document.getElementById('rankModal').style.display='none'">Close</button>
+        </footer>
+    </div>
+</div>
+
 <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -245,6 +262,23 @@ function validateQuantity() {
 // Adding a function to close the modal
 function closeModal() {
     document.getElementById('confirmationModal').style.display = 'none';
+}
+
+function showRank(rankType) {
+    // Fetch rank data from the server
+    fetch(`/rank/${rankType}`)
+    .then(response => response.json())
+    .then(data => {
+        // Populate the modal with rank data
+        let rankList = '';
+        data.forEach((item, index) => {
+            rankList += `<p>${index + 1}. ${item.symbol}: ${item.value}</p>`;
+        });
+        document.getElementById('rankContent').innerHTML = rankList;
+        document.getElementById('rankModalTitle').textContent = rankType.replace(/([A-Z])/g, ' $1').trim();
+        document.getElementById('rankModal').style.display = 'block';
+    })
+    .catch(error => console.error('Error fetching rank data:', error));
 }
 </script>
 

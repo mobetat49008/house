@@ -8,99 +8,101 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        html,body,h1,h2,h3,h4,h5 {font-family: "Raleway", sans-serif}
-        .positive { color: green; }
-        .negative { color: red; }
-        .w3-table tr:hover {
-            background-color: #f5f5f5;
-            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-            transition: all 0.3s ease;
-        }
-        .summary-row {
-            white-space: nowrap;
-            overflow-x: auto;
-        }
-        .selected {
-            color: black;
-            text-decoration: underline;
-            cursor: pointer;
-        }
-        .unselected {
-            color: grey;
-            cursor: pointer;
-        }
-        #optionsContainer {
-            display: flex;
-            align-items: center;
-        }
-        #balanceDisplay {
-            margin-top: 10px;
-        }
-        #futuresButton {
-            background: none;
-            border: none;
-            padding: 0;
-            font: inherit;
-            color: inherit;
-        }
-        .flex-container {
-            display: flex;
-            align-items: stretch;
-        }
-        .table-flex-container {
-            display: flex;
-            flex-wrap: nowrap;
-        }
-        .summary-row {
-            flex-basis: 10%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 10px;
-        }
-        .content-container {
-            display: flex;
-            align-items: start;
-        }
-        .chart-container {
-            flex-basis: 45%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 5px;
-        }
-        .chart-canvas {
-            height: auto;
-        }
-        #financialDataContainer {
-            flex: 1;
-            background-color: white;
-            border: 1px solid #ddd;
-            padding: 10px;
-            position: relative;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-        .table-container {
-            flex: 0 0 auto;
-            min-width: 100%;
-        }
-        #dataTable, #jsonDataTable {
-            width: 100%;
-            margin-top: 20px;
-            table-layout: auto;
-        }
-        @media screen and (max-width: 768px) {
-            .flex-container, #financialDataContainer, .table-container {
-                flex-direction: column;
-                width: auto;
-                flex: none;
-            }
-        }
-	
+	<style>
+		html,body,h1,h2,h3,h4,h5 {font-family: "Raleway", sans-serif}
+		.positive { color: green; }
+		.negative { color: red; }
+		.w3-table tr:hover {
+			background-color: #f5f5f5;
+			box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+			transform: translateY(-2px);
+			transition: all 0.3s ease;
+		}
+		.summary-row {
+			white-space: nowrap;
+			overflow-x: auto;
+		}
+		.selected {
+			color: black;
+			text-decoration: underline;
+			cursor: pointer;
+		}
+		.unselected {
+			color: grey;
+			cursor: pointer;
+		}
+		#optionsContainer {
+			display: flex;
+			align-items: center;
+		}
+		#balanceDisplay {
+			margin-top: 10px;
+		}
+		#futuresButton {
+			background: none;
+			border: none;
+			padding: 0;
+			font: inherit;
+			color: inherit;
+		}
+		.flex-container {
+			display: flex;
+			align-items: stretch;
+		}
+		.table-flex-container {
+			display: flex;
+			flex-wrap: nowrap;
+		}
+		.summary-row {
+			flex-basis: 10%;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: flex-start;
+			padding: 10px;
+		}
+		.content-container {
+			display: flex;
+			align-items: start;
+		}
+		.chart-container {
+			flex-basis: 45%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			padding: 5px;
+		}
+		.chart-canvas {
+			height: auto;
+		}
+		#financialDataContainer {
+			flex: 1;
+			background-color: white;
+			border: 1px solid #ddd;
+			padding: 10px;
+			position: relative;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+		}
+		.table-container {
+			flex: 0 0 auto;
+			min-width: 100%;
+			position: relative; /* Ensure the table is positioned correctly */
+			z-index: 1; /* Lower z-index of the table */
+		}
+		#dataTable, #jsonDataTable {
+			width: 100%;
+			margin-top: 20px;
+			table-layout: auto;
+		}
+		@media screen and (max-width: 768px) {
+			.flex-container, #financialDataContainer, .table-container {
+				flex-direction: column;
+				width: auto;
+				flex: none;
+			}
+		}
+
 		.w3-sidebar {
 			width: 300px; /* Initial width */
 			transition: width 0.5s ease;
@@ -126,16 +128,48 @@
 		#toggleSidebarButton:hover {
 			background-color: #004D40; /* Darker shade for hover effect */
 		}
-		
-    </style>
+
+		/* Ensure dropdown is always on top */
+		.w3-dropdown-hover {
+			position: relative; /* Ensure it's positioned correctly */
+			z-index: 10000; /* Ensure the dropdown button stays on top */
+		}
+
+		.w3-dropdown-content {
+			z-index: 99999; /* Set a high z-index */
+			position: relative; /* Ensure it's positioned correctly */
+			background-color: #fff; /* Ensure it's visible */
+			box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
+		}
+
+		.w3-dropdown-content .w3-bar-item {
+			display: block;
+			padding: 8px 16px;
+		}
+
+		.w3-dropdown-content .w3-bar-item:hover {
+			background-color: #ddd; /* Add hover effect */
+		}
+
+	</style>
     {% block additional_styles %}{% endblock %}
 </head>
 <body class="w3-light-grey">
 
-    <div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
+    <div class="w3-bar w3-top w3-black w3-large">
         <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey" onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
         <button class="w3-bar-item w3-button w3-black" onclick="hideSidebar()">&#9776;</button>
-		<span class="w3-bar-item w3-right"><i class="fa fa-cat"></i></span>
+        <div class="w3-dropdown-hover">
+            <button class="w3-button">Rank</button>
+            <div class="w3-dropdown-content w3-bar-block w3-border">
+                <a href="#" class="w3-bar-item w3-button" onclick="showRank('ChangePercentRank')">Change Percent Rank</a>
+                <a href="#" class="w3-bar-item w3-button" onclick="showRank('ChangePriceRank')">Change Price Rank</a>
+                <a href="#" class="w3-bar-item w3-button" onclick="showRank('DayRangeRank')">Day Range Rank</a>
+                <a href="#" class="w3-bar-item w3-button" onclick="showRank('VolumeRank')">Volume Rank</a>
+                <a href="#" class="w3-bar-item w3-button" onclick="showRank('AmountRank')">Amount Rank</a>
+            </div>
+        </div>
+        <span class="w3-bar-item w3-right"><i class="fa fa-cat"></i></span>
         {% if 'logged_in' in session and session['logged_in'] %}
             <a href="/logout" class="w3-bar-item w3-button w3-right" style="height:46px;">{{ session['username'] }} (Logout)</a>
         {% else %}
@@ -143,12 +177,12 @@
         {% endif %}
     </div>
 
-    <nav class="w3-sidebar w3-collapse w3-black w3-animate-left" style="z-index:3;width:300px;" id="mySidebar"><br>
+    <nav class="w3-sidebar w3-collapse w3-black w3-animate-left" style="width:300px;" id="mySidebar"><br>
         <div class="w3-container w3-row">
             <div class="w3-col s8 w3-bar">
                 <span>Welcome, <strong>Ruby</strong></span><br>
                 <a href="#" class="w3-bar-item w3-button"><i class="fa fa-envelope"></i></a>
-                <a href="#" class="w3-bar-item w3-button"><i the "fa fa-user"></i></a>
+                <a href="#" class="w3-bar-item w3-button"><i class="fa fa-user"></i></a>
                 <a href="#" class="w3-bar-item w3-button"><i class="fa fa-cog"></i></a>
             </div>
         </div>
@@ -159,7 +193,7 @@
         <div class="w3-bar-block">
             <a href="#" class="w3-bar-item w3-button w3-padding-16 w3-hide-large w3-dark-grey w3-hover-black" onclick="w3_close()" title="close menu"><i class="fa fa-remove fa-fw"></i>  Close Menu</a>
             <a href="/" class="w3-bar-item w3-button w3-padding w3-blue"><i class="fa fa-users fa-fw"></i>  Overview</a>
-            <a href="/watchlist" class="w3-bar-item w3-button w3-padding w3-blue"><i the "fa fa-users fa-fw"></i>  Watch List</a>
+            <a href="/watchlist" class="w3-bar-item w3-button w3-padding w3-blue"><i class="fa fa-users fa-fw"></i>  Watch List</a>
         </div>
     </nav>
 
@@ -388,10 +422,27 @@ $(document).ready(function(){
 		}
 	}
 
-	// Ensures proper initial setup
-	document.addEventListener('DOMContentLoaded', function() {
-		hideSidebar(); // Optionally hide the sidebar on page load
-	});
-</script>
+    // Ensures proper initial setup
+    document.addEventListener('DOMContentLoaded', function() {
+        hideSidebar(); // Optionally hide the sidebar on page load
+    });
+
+    function showRank(rankType) {
+        // Fetch rank data from the server
+        fetch(`/rank/${rankType}`)
+        .then(response => response.json())
+        .then(data => {
+            // Populate the modal with rank data
+            let rankList = '';
+            data.forEach((item, index) => {
+                rankList += `<p>${index + 1}. ${item.symbol}: ${item.value}</p>`;
+            });
+            document.getElementById('rankContent').innerHTML = rankList;
+            document.getElementById('rankModalTitle').textContent = rankType.replace(/([A-Z])/g, ' $1').trim();
+            document.getElementById('rankModal').style.display = 'block';
+        })
+        .catch(error => console.error('Error fetching rank data:', error));
+    }
+    </script>
 </body>
 </html>
