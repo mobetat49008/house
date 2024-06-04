@@ -459,7 +459,7 @@ $(document).ready(function(){
                     if (data.error) {
                         rankDataDiv.append(`<p>${data.error}</p>`);
                     } else {
-                        let table = $('<table class="w3-table w3-bordered"><tr><th>Date</th><th>Code</th><th>Name</th><th>Timestamp</th><th>Close</th></tr></table>');
+                        let table = $('<table class="w3-table w3-bordered"><tr><th>Date</th><th>Code</th><th>Name</th><th>Timestamp</th><th>Close</th><th>Change_price</th></tr></table>');
                         data.forEach(item => {
                             let row = $('<tr></tr>');
                             row.append(`<td>${item.date}</td>`);
@@ -467,6 +467,7 @@ $(document).ready(function(){
                             row.append(`<td>${item.name}</td>`);
                             row.append(`<td>${item.ts}</td>`);
                             row.append(`<td>${item.close}</td>`);
+							row.append(`<td>${item.change_price}</td>`);
                             table.append(row);
                         });
                         rankDataDiv.append(table);

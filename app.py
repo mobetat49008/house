@@ -990,34 +990,34 @@ def show_rank(rank_type):
     if rank_type == 'ChangePercentRank':
         scanners = api.scanners(
             scanner_type=sj.constant.ScannerType.ChangePercentRank, 
-            count=5
+            count=20
         )
     elif rank_type == 'ChangePriceRank':
         scanners = api.scanners(
             scanner_type=sj.constant.ScannerType.ChangePriceRank, 
-            count=5
+            count=20
         )
     elif rank_type == 'DayRangeRank':
         scanners = api.scanners(
             scanner_type=sj.constant.ScannerType.DayRangeRank, 
-            count=5
+            count=20
         )
     elif rank_type == 'VolumeRank':
         scanners = api.scanners(
             scanner_type=sj.constant.ScannerType.VolumeRank, 
-            count=5
+            count=20
         )
     elif rank_type == 'AmountRank':
         scanners = api.scanners(
             scanner_type=sj.constant.ScannerType.AmountRank, 
-            count=5
+            count=20
         )
     else:
         return jsonify({'error': 'Invalid rank type'})
 
     df = pd.DataFrame(s.__dict__ for s in scanners)
     df.ts = pd.to_datetime(df.ts)
-    df = df[['date', 'code', 'name', 'ts', 'close']]
+    df = df[['date', 'code', 'name', 'ts', 'close','change_price']]
     
     data = df.to_dict(orient='records')
     return jsonify(data)
