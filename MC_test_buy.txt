@@ -1,0 +1,250 @@
+// Define inputs and variables
+Inputs: 
+    VolumeThreshold(1.5),   // Multiplier to define volume imbalance
+    OrderThreshold(1.2),    // Multiplier to define order imbalance
+    BigPointerThreshold(1000),
+    KPeriod(14),            // Period for %K calculation
+    DPeriod(3);             // Period for %D calculation
+
+
+Vars: 
+    BV_RealTime(0), AV_RealTime(0), BO_RealTime(0), AO_RealTime(0), TA_RealTime(0), TB_RealTime(0),
+    BV_3Days(0), AV_3Days(0), BO_3Days(0), AO_3Days(0), 
+    BV_5Days(0), AV_5Days(0), BO_5Days(0), AO_5Days(0), 
+    BV_AV_Diff(0), BO_AO_Diff(0), TA_TB_Diff(0), Diff_Ratio(0), ATR(0), 
+    KValue(0), DValue(0),  // Variables for KD calculation
+    IsSettlementDay(false), // Variable to check if today is settlement day
+    PreviousDayHigh(0), PreviousDayLow(0), CurrentDayHigh(0), CurrentDayLow(0),first_kbar_high(0), // Variables for storing previous day's high and low
+    PreviousDayHigh_TWSE(0), PreviousDayLow_TWSE(0), CurrentDayHigh_TWSE(0), CurrentDayLow_TWSE(0),first_kbar_high_TWSE(0), // Variables for storing previous day's high and low _TWSE
+    RiskRewardRatio(1.5), StopLoss(0), TakeProfit(0), TrailingStop(200),
+    TrailingProfitLevel(0), HighestPriceSinceEntry(0), Weekday(0), CurrentDay(0),
+    daytime_close(0),daytime_close_TWSE(0),after_hour_close(0),
+    BuyCount(0),
+    BV_AV_AvgValue(0),TA_TB_AvgLength(12);
+
+{************************************SettlementDay************************************}
+// Check if today is the third Wednesday of the month
+Weekday = DayOfWeek(Date); // Get the current weekday
+CurrentDay = DayOfMonth(Date); // Get the current day of the month
+
+// Check if today is a Wednesday
+If Weekday = 3 then begin // Wednesday is represented by 3
+    // Check if it's the third Wednesday of the month
+    If CurrentDay >= 15 and CurrentDay <= 21 then
+        IsSettlementDay = true
+    else
+        IsSettlementDay = false;
+end;
+{*************************************************************************************}
+
+// Calculate %K and %D for the KD (Stochastic Oscillator)
+KValue = (Close - Lowest(Low, KPeriod)) / (Highest(High, KPeriod) - Lowest(Low, KPeriod)) * 100;
+DValue = Average(KValue, DPeriod);
+
+// Retrieve real-time bid volume, ask volume, bid orders, and ask orders
+If Time >= 845 and Time <= 1345 or Time >= 1500 and Time <= 1700 then begin
+    BV_RealTime = Close of data2; // Get real-time bid volume from data feed
+    AV_RealTime = Close of data3; // Get real-time ask volume from data feed
+    BO_RealTime = Close of data4; // Get real-time number of bid orders from data feed
+    AO_RealTime = Close of data5; // Get real-time number of ask orders from data feed
+    TA_RealTime = Close of data12;
+    TB_RealTime = Close of data13;
+end;
+
+// Retrieve 3-day cumulative bid volume, ask volume, bid orders, and ask orders
+BV_3Days = Summation(Close of data2, 3 * 288); // Sum bid volume over the last 3 days (assuming 288 bars per day for 5-min bars)
+AV_3Days = Summation(Close of data3, 3 * 288); // Sum ask volume over the last 3 days
+BO_3Days = Summation(Close of data4, 3 * 288); // Sum bid orders over the last 3 days
+AO_3Days = Summation(Close of data5, 3 * 288); // Sum ask orders over the last 3 days
+
+// Retrieve 5-day cumulative bid volume, ask volume, bid orders, and ask orders
+BV_5Days = Summation(Close of data2, 5 * 288); // Sum bid volume over the last 5 days
+AV_5Days = Summation(Close of data3, 5 * 288); // Sum ask volume over the last 5 days
+BO_5Days = Summation(Close of data4, 5 * 288); // Sum bid orders over the last 5 days
+AO_5Days = Summation(Close of data5, 5 * 288); // Sum ask orders over the last 5 days
+
+// Calculate differences for real-time data
+BV_AV_Diff = BV_RealTime - AV_RealTime;
+BO_AO_Diff = BO_RealTime - AO_RealTime;
+TA_TB_Diff = TA_RealTime - TB_RealTime;
+BV_AV_AvgValue = AverageFC(BV_AV_Diff, TA_TB_AvgLength);
+
+
+// Calculate the ratio of differences
+// Ensure BO_AO_Diff is not zero to avoid division by zero
+If BO_AO_Diff <> 0 then
+    Diff_Ratio = BV_AV_Diff / BO_AO_Diff;
+
+// Calculate ATR for volatility
+ATR = AvgTrueRange(14); // 14-period ATR for stop loss and take profit calculation
+
+// Update the previous day's high and low for the time range of 0845 - 1345
+If Time = 1345 then begin
+    PreviousDayHigh = High;
+    PreviousDayLow = Low;
+    daytime_close = Close;
+    PreviousDayHigh_TWSE = High of data6;
+    PreviousDayLow_TWSE = Low of data6;
+    daytime_close_TWSE = Close of data6;
+end;
+
+if time = 0850 then begin
+//TXF
+CurrentDayHigh = 0;
+CurrentDayLow =0;
+first_kbar_high = H;
+//TWSE
+CurrentDayHigh_TWSE = 0;
+CurrentDayLow_TWSE  =0;
+first_kbar_high_TWSE  = H of data6;
+BuyCount = 0;
+end;
+
+// During 0845 to 1345, track the high and low prices for the current day
+If Time >= 845 and Time <= 1345 then begin
+    If High > CurrentDayHigh then CurrentDayHigh = High;
+    If Low < CurrentDayLow then CurrentDayLow = Low;
+    If High of data6 > CurrentDayHigh_TWSE then CurrentDayHigh_TWSE = High of data6;
+    If Low of data6 < CurrentDayLow_TWSE then CurrentDayLow_TWSE = Low of data6;
+end;
+
+vars:night_CurrentDayHigh(0),night_CurrentDayLow(0);
+if time = 1500 then begin
+night_CurrentDayHigh =0;
+night_CurrentDayLow =0;
+end;
+If Time >= 1500 and Time <= 0500 then begin
+    If High > night_CurrentDayHigh then night_CurrentDayHigh = High;
+    If Low < night_CurrentDayLow then night_CurrentDayLow = Low;
+end;
+
+inputs:
+    Length(20),                // Lookback period for calculations
+    MA_Period(60),             // Period for the moving average
+    AngleThreshold(10),        // Threshold for angle changes (recommended 5-15)
+    SlopeThreshold(0.05);      // Threshold for slope changes (recommended 0.03-0.1)
+
+variables:
+    MA(0),                     // Moving average value
+    Angle(0),                  // Linear regression angle
+    Slope(0),                  // Linear regression slope
+    Trend(0),                  // Trend description
+    MA_kbar(0),                     // Moving average value _kbar
+    Angle_kbar(0),                  // Linear regression angle _kbar
+    Slope_kbar(0),                  // Linear regression slope _kbar
+    Trend_kbar(0);                 // Trend description _kbar
+
+
+// Calculate the 60-minute moving average
+MA = Average(BV_AV_Diff , MA_Period);
+MA_kbar = Average(Close , MA_Period);
+
+// Calculate Linear Regression Angle using the 60-minute moving average
+Angle = LinearRegAngle(MA, Length);
+Angle_kbar = LinearRegAngle(MA_kbar, Length);
+
+// Calculate Slope using the 60-minute moving average
+Slope = (LinearRegValue(MA, Length, 0) - LinearRegValue(MA, Length, Length)) / Length;
+Slope_kbar = (LinearRegValue(MA_kbar, Length, 0) - LinearRegValue(MA_kbar, Length, Length)) / Length;
+
+// Determine trend based on angle and slope
+if Angle > AngleThreshold and Slope > SlopeThreshold then
+    Trend = 1
+else if Angle < -AngleThreshold and Slope < -SlopeThreshold then
+    Trend = -1
+else
+    Trend = 0;
+    
+// Determine trend based on angle and slope
+if Angle_kbar > AngleThreshold and Slope_kbar > SlopeThreshold then
+    Trend_kbar = 1
+else if Angle_kbar < -AngleThreshold and Slope_kbar < -SlopeThreshold then
+    Trend_kbar = -1
+else
+    Trend_kbar = 0;
+
+Inputs: Period(14);
+Vars: PlusDIValue(0), MinusDIValue(0), ADXValue(0);
+
+// Calculate +DI, -DI, and ADX
+PlusDIValue = (XAverage(MaxList(High - High[1], 0), Period) / XAverage(MaxList(High - Low, AbsValue(High - Close[1]), AbsValue(Low - Close[1])), Period)) * 100;
+MinusDIValue = (XAverage(MaxList(Low[1] - Low, 0), Period) / XAverage(MaxList(High - Low, AbsValue(High - Close[1]), AbsValue(Low - Close[1])), Period)) * 100;
+ADXValue = XAverage(AbsValue(PlusDIValue - MinusDIValue) / (PlusDIValue + MinusDIValue) * 100, Period);
+
+// Trading logic
+// Define risk-reward ratio and stop loss/take profit settings
+StopLoss = EntryPrice - 100;
+TakeProfit = EntryPrice + 200;
+TrailingStop = 200;
+//and BV_AV_Diff > BigPointerThreshold 
+// Enter Long Position: When BV-AV and BO-AO are both significantly positive
+// Add condition to avoid buying when KValue > 80 and DValue > 80 (KD is high)
+If MarketPosition = 0 and BV_AV_Diff > 0 and BO_AO_Diff > 0 and BV_AV_Diff > BO_AO_Diff and Diff_Ratio > VolumeThreshold and KValue <= 80 and DValue <= 80 and first_kbar_high <> CurrentDayHigh and BuyCount < 2
+and Trend <> -1 and Trend_kbar <> -1 and BV_AV_Diff >  BV_AV_AvgValue then begin
+    // Condition 1: If the time is between 0900 and 1345, do not enter if the current high is below the previous day's low (0900-1345)
+    If Time >= 900 and Time <= 1200 then begin
+        If CurrentDayHigh > PreviousDayLow then begin
+            If CurrentDayHigh < PreviousDayHigh then 
+                Buy ("BuySignal-day") next bar at market
+            else
+                Buy ("BuySignal-day-1") next bar at market;  
+            
+            BuyCount = BuyCount + 1;
+        end;
+    end
+    // Condition 2: If the time is between 1500 and 0500, no additional restrictions
+    else If Time >= 1500 or Time < 500 then begin
+        //Buy ("BuySignal-night-1") next bar at market;  
+        BuyCount = BuyCount + 1;
+    end;
+end;
+
+// Delay setting stop loss for 1 bar to allow for market movement
+If MarketPosition > 0 then
+    Sell ("StopLoss") next bar at StopLoss stop;
+
+// Condition to keep 5 points within 3 bars if price is greater than 50
+If MarketPosition = 1 and Close > EntryPrice + 50 then begin
+    Vars: BarsSinceProfitCondition(0);
+    BarsSinceProfitCondition = BarsSinceEntry;
+    If BarsSinceProfitCondition <= 3 then
+        Sell ("AvoidQuickFall") next bar at EntryPrice + 5 stop;
+end;
+
+vars:Trigger_take_profit(False);
+if marketposition = 0 then Trigger_take_profit=False;
+
+// Trailing take-profit logic
+If MarketPosition > 0 then begin
+    // Update the highest price reached since entering the position
+    HighestPriceSinceEntry = MaxList(HighestPriceSinceEntry, Close);
+    If Close > EntryPrice + 100 then 
+       Trigger_take_profit = True;
+    
+    // If the current price exceeds the entry price by more than 100 points
+    If Trigger_take_profit then begin
+        // Calculate the new trailing profit level as 20% below the highest price since entry
+        TrailingProfitLevel = HighestPriceSinceEntry - (0.3 * (HighestPriceSinceEntry - EntryPrice));
+        
+        // Set a stop order to exit the position if the price falls back to the trailing level
+        Sell ("TrailingStopProfit") next bar at TrailingProfitLevel stop;
+    end;
+end;
+
+// Settlement day exit logic
+// If today is a settlement day and the time is 13:25, exit long positions
+If IsSettlementDay and MarketPosition > 0 and Time = 1325 then begin
+    Sell ("SettlementExit") next bar at market; // Exit the long position
+end;
+
+// Exit Conditions
+// Close Long Position: When the imbalance conditions for a short trade appear
+If MarketPosition > 0 and BV_AV_Diff < 0 and BO_AO_Diff < 0 and Diff_Ratio < (1 / VolumeThreshold) and C - entryprice > 0 then
+    Sell ("ExitLong-1") next bar at market;
+{
+// Optional: Print debug information
+Print(Date, " ", Time, " - BV-AV Diff: ", BV_AV_Diff, " BO-AO Diff: ", BO_AO_Diff, " Diff Ratio: ", Diff_Ratio,
+      " BV_3Days: ", BV_3Days, " AV_3Days: ", AV_3Days, " BO_3Days: ", BO_3Days, " AO_3Days: ", AO_3Days,
+      " BV_5Days: ", BV_5Days, " AV_5Days: ", AV_5Days, " BO_5Days: ", BO_5Days, " AO_5Days: ", AO_5Days,
+      " ATR: ", ATR,"IsSettlementDay :",IsSettlementDay );
+}
